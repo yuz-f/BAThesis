@@ -9,6 +9,7 @@ author:
     orcid: 23-780-
 abstract: |
   Lorem ipsum dolor sit amet, consectetur adipiscing elit.  
+  {{< pagebreak >}}
 date: today
 keywords:
   - bla bla bla
@@ -24,6 +25,7 @@ format:
 execute:
   echo: false
 ---
+{{< pagebreak >}}
 
 # Introduction
 
@@ -64,6 +66,10 @@ Your conclusions here.
 
 Your summary here.
 
+## Relation to existing Models
+
+Your summary here.
+
 ## Implications for Psychology
 
 Your implications here.
@@ -77,9 +83,4 @@ Your limitations here.
 Your recommendations here.
 
 # References
-
-If you are using a bibliography file, add this to the YAML header:
-
-```yaml
-bibliography: references.bib
-csl: apa.csl
+<!-- References will auto-populate in the refs div below -->

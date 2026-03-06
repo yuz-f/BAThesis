@@ -29,58 +29,87 @@ execute:
 
 # Introduction
 
+Objective of this thesis
+
 ## Motivation and Background
 
-Your introduction text here.
+Arguments against traditional Approache
+
+1. Data never speak for themselves but require a model to be understood and to be explained.
+2. Verbal theorizing alone ultimately cannot substitute for quantitative analysis.
+3. There are always several alternative models that vie for explanation of data and we must select among them.
+4. Model selection rests on both quantitative evaluation and intellectual and scholarly judgment.
+
+Advantage of Modeling
+
+1. Quantitative description of data, by itself, can have considerable psychological implications because it prescribes crucial features of the learning process
+2. Model selection is Important basis of strict quantitative criteria.
+3. the most appropriate way in which to apply a model to the data from more than one individual
+
+It is merely concerned with describing the data!
+
+Communication is key for precise replication - water vs. electricity analogy - and computational model have to be naturally more precise than verbal model
 
 ## Model overview
 
-Your introduction text here.
+Model mapped out as a diagramm
 
 # Methods
 
 ## Materials and Procedure
 
-Your description here.
+Programming language
+Extention
+Where to find it
+How I got my data
 
 ## Quality Control
 
-Your description here.
+Ideally, we would want our theories to occupy only a small region of the outcome space, but for all observed outcomes to fall within that region—as they do for Kepler’s and Darwin’s theories.
 
-## Data Analysis
+- limit free parameters
+- Balance: parsimony, simplicity, predictiveness
+- AIC and BIC and Bayes factors
+- Reproducability
+- Bonini’s paradox: as a model more closely approximates reality, it becomes less understandable
 
-Your description here.
+## Model Architecture
+
+Code and Visual show case of Model
+
+## Parameter Settings
+
+Fixed & free parameter settings
 
 # Results
 
-Your results here.
+## Change in Pattern of Performance
 
-## Conclusions
-
-Your conclusions here.
-
+Show every qualitatively different pattern and explain in layman's term
 
 # Discussion
 
-## Summary of Findings
-
-Your summary here.
+what assumptions are important for achieving the key effects of the model and which assumptions are ancillary ones necessary for implementation, what theoretical claims the assumptions of the model map onto, and what space of possible patterns of performance the model could capture.
 
 ## Relation to existing Models
 
-Your summary here.
+Relation to existing Models
+
+## Alternative Implementation
+
+peculating on how performance might have been different had I made other choices
 
 ## Implications for Psychology
 
-Your implications here.
+Implication for Psychology
 
 ## Limitations of the Study
 
-Your limitations here.
+Limitation
 
 ## Recommendations for Future Research
 
-Your recommendations here.
+Recommendations for Future Research
 
 # References
 <!-- References will auto-populate in the refs div below -->

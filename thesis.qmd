@@ -1,6 +1,6 @@
 ---
-title: "Computational Modelling in Psychology"
-subtitle: "Lorem Ipsum....."
+title: "Of the Standards of Science"
+subtitle: "Computational Modelling as Psychology's Common Language"
 author:
     name: "Yuzan Ilario Flury"
     affiliation: Department of Psychology, University of Zurich

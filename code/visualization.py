@@ -3,9 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from pathlib import Path
+from matplotlib.animation import FuncAnimation
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
-from sklearn.metrics import adjusted_rand_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
 
 IMG_DIR = Path(__file__).parent.parent / "meta" / "img"
@@ -87,24 +86,23 @@ def plot_agent_skills(adf_low, adf_high, n_domains: int):
 
     # ── Figure 2: per-domain skill trajectories ───────────────────────────
     fig2, (ax3, ax4) = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True)
-    fig2.suptitle("Mean Skill per Domain Over Time\n(surviving labs only)", fontsize=11)
+    fig2.suptitle("Mean Skill per Domain Over Time\n(all active agents per step)", fontsize=11)
 
-    def domain_trajectories(adf, survivors):
+    def domain_trajectories(adf):
         traj = np.zeros((len(all_steps), n_domains))
         for i, step in enumerate(all_steps):
             step_df = adf.xs(step, level="Step")
-            present = [lid for lid in survivors if lid in step_df.index]
-            if not present:
+            if step_df.empty:
                 continue
-            skills = np.array([step_df.loc[lid, "DomainSkills"] for lid in present])
+            skills = np.array(step_df["DomainSkills"].tolist())
             traj[i] = skills.mean(axis=0)
         return traj
 
-    for ax, adf, survivors, label in [
-        (ax3, adf_low,  final_low,  "Specialist (low-skill)"),
-        (ax4, adf_high, final_high, "Generalist (high-skill)"),
+    for ax, adf, label in [
+        (ax3, adf_low,  "Specialist (low-skill)"),
+        (ax4, adf_high, "Generalist (high-skill)"),
     ]:
-        traj = domain_trajectories(adf, survivors)
+        traj = domain_trajectories(adf)
         for d in range(n_domains):
             ax.plot(all_steps, traj[:, d], color=cmap_domains(d / n_domains),
                     linewidth=1.5, label=f"D{d}", alpha=0.85)
@@ -283,149 +281,139 @@ def plot_scenarios(df_low, df_high, adf_low, adf_high, steps: int = 100):
     plt.show()
 
 
-def plot_cluster_analysis(adf_low, adf_high, n_domains: int, n_labs: int,
-                          fingerprints_low:  dict | None = None,
-                          fingerprints_high: dict | None = None,
-                          selection_interval: int = 50):
+def plot_cluster_animation(adf_low, adf_high, n_labs: int,
+                           selection_interval: int = 25, fps: int = 10):
     """
-    Cluster analysis: do researchers self-organise by skill profile
-    in a way that mirrors their original lab membership?
+    Animated PCA scatter showing how agents move through skill-space over time.
 
-    For each scenario (specialist / generalist), produces a 2×2 figure:
-      Row 1: PCA scatter at first and final step — dots coloured by K-Means cluster,
-             marker shaped by original lab ID.
-      Row 2: ARI over time (two lines: vs original lab label and vs nearest fingerprint)
-             and Silhouette score over time. Vertical dotted lines mark selection events.
+    Each frame = one simulation step.
+      - Dot colour + marker shape = lab of origin (stable across replacement)
+      - Gold outline, larger dot  = agent spawned this step
+      - Red ✕ at last position    = agent culled this step (shown for one frame)
+      - Title turns dark-red and shows "◀ SELECTION" at culling steps
+      - Selection-event frames are held 3× longer than normal frames
 
-    K-Means is run with k = n_labs. PCA projects the 10-D skill vector to 2-D.
-    ARI = 1 → clusters perfectly recover labs; 0 → random; can be negative.
-    Silhouette → 1 → tight, well-separated clusters; 0 → overlapping.
+    PCA and StandardScaler are fit once on the full dataset so axes are stable.
+    Output: meta/img/cluster_anim_specialist.gif + cluster_anim_generalist.gif
     """
-    cmap_cluster = plt.get_cmap("tab10", n_labs)
-    markers      = ["o", "s", "^", "D", "v", "P", "*", "X", "h", "8"]
+    cmap    = plt.get_cmap("tab10", n_labs)
+    markers = ["o", "s", "^", "D", "v", "P", "*", "X", "h", "8"]
 
-    def _nearest_fp_labels(step_df, fingerprints):
-        """Assign each researcher to the lab whose fingerprint is closest (L2)."""
-        if not fingerprints:
-            return None
-        fp_ids    = sorted(fingerprints.keys())
-        fp_matrix = np.array([fingerprints[i] for i in fp_ids])
-        result = []
-        for aid in step_df.index:
-            skill = np.array(step_df.loc[aid, "DomainSkills"])
-            dists = np.linalg.norm(fp_matrix - skill, axis=1)
-            result.append(fp_ids[int(np.argmin(dists))])
-        return result
-
-    def _analyse(adf, label, filename, fingerprints):
+    def _animate(adf, label, filename):
         all_steps = sorted(adf.index.get_level_values("Step").unique())
 
-        # --- time series: ARI (original + nearest-FP) and Silhouette ---
-        ari_orig   = []
-        ari_fp     = []
-        sil_scores = []
-        ts_steps   = []
+        # Fit scaler + PCA once on all data so axes stay stable
+        all_skills = np.array(adf["DomainSkills"].tolist())
+        scaler     = StandardScaler().fit(all_skills)
+        all_scaled = np.nan_to_num(scaler.transform(all_skills))
+        pca        = PCA(n_components=2, random_state=42).fit(all_scaled)
+        var        = pca.explained_variance_ratio_
 
+        # Pre-compute per-step dataframes and PCA coords
+        step_dfs    = {}
+        step_coords = {}
         for step in all_steps:
-            step_df = adf.xs(step, level="Step")
-            if len(step_df) < n_labs + 1:
-                continue
-            X      = np.array(step_df["DomainSkills"].tolist())
-            labs   = step_df["LabID"].astype(int).tolist()
-            Xs     = StandardScaler().fit_transform(X)
-            Xs     = np.nan_to_num(Xs, nan=0.0)   # guard zero-variance domains
-            km     = KMeans(n_clusters=n_labs, n_init=5, random_state=42)
-            labels = km.fit_predict(Xs)
-            ari_orig.append(adjusted_rand_score(labs, labels))
-            sil_scores.append(silhouette_score(Xs, labels) if len(set(labels)) > 1 else 0.0)
-            fp_labs = _nearest_fp_labels(step_df, fingerprints)
-            ari_fp.append(adjusted_rand_score(fp_labs, labels) if fp_labs else None)
-            ts_steps.append(step)
+            df     = adf.xs(step, level="Step")
+            scaled = np.nan_to_num(scaler.transform(np.array(df["DomainSkills"].tolist())))
+            step_dfs[step]    = df
+            step_coords[step] = pca.transform(scaled)
 
-        # --- PCA scatter at first and final step ---
-        first_step = all_steps[0]
-        final_step = all_steps[-1]
+        # Fixed axis bounds across all steps so movement is interpretable
+        all_coords = np.vstack(list(step_coords.values()))
+        pad  = 0.5
+        xlim = (all_coords[:, 0].min() - pad, all_coords[:, 0].max() + pad)
+        ylim = (all_coords[:, 1].min() - pad, all_coords[:, 1].max() + pad)
 
-        fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
-        fig.suptitle(f"Cluster Analysis — {label}", fontsize=11)
+        # Detect spawns and deaths at each step transition
+        spawned_at = {}
+        died_at    = {}
+        prev_ids   = set()
+        for step in all_steps:
+            curr_ids        = set(step_dfs[step].index)
+            spawned_at[step] = curr_ids - prev_ids
+            died_at[step]    = prev_ids - curr_ids
+            prev_ids         = curr_ids
 
-        for col, step in enumerate([first_step, final_step]):
-            step_df = adf.xs(step, level="Step")
-            X      = np.array(step_df["DomainSkills"].tolist())
-            labs   = step_df["LabID"].astype(int).tolist()
-            Xs     = StandardScaler().fit_transform(X)
-            Xs     = np.nan_to_num(Xs, nan=0.0)   # guard zero-variance domains
-            pca    = PCA(n_components=2, random_state=42)
-            coords = pca.fit_transform(Xs)
-            km     = KMeans(n_clusters=n_labs, n_init=5, random_state=42)
-            clusters = km.fit_predict(Xs)
+        # Frame list — hold selection-event steps 3× longer
+        frames = []
+        for step in all_steps:
+            hold = 3 if int(step) % selection_interval == 0 else 1
+            frames.extend([step] * hold)
 
-            ax = axes[0, col]
-            for i, (x, y) in enumerate(coords):
-                lab_idx = labs[i] % len(markers)
+        fig, ax = plt.subplots(figsize=(9, 7))
+
+        def _draw(step):
+            ax.clear()
+            df      = step_dfs[step]
+            coords  = step_coords[step]
+            spawned = spawned_at[step]
+            died    = died_at[step]
+
+            # Red ✕ at last position of culled agents
+            step_idx = all_steps.index(step)
+            if step_idx > 0:
+                prev_step   = all_steps[step_idx - 1]
+                prev_df     = step_dfs[prev_step]
+                prev_coords = step_coords[prev_step]
+                for j, aid in enumerate(prev_df.index):
+                    if aid in died:
+                        px, py = prev_coords[j]
+                        ax.scatter(px, py, c="red", marker="x",
+                                   s=180, linewidths=2.5, zorder=5)
+
+            # Active agents
+            for j, (aid, row) in enumerate(df.iterrows()):
+                lab    = int(row["LabID"])
+                x, y   = coords[j]
+                is_new = aid in spawned
                 ax.scatter(x, y,
-                           color=cmap_cluster(clusters[i] / n_labs),
-                           marker=markers[lab_idx],
-                           s=40, alpha=0.75, linewidths=0.4,
-                           edgecolors="k")
-            ari = adjusted_rand_score(labs, clusters)
-            var = pca.explained_variance_ratio_
+                           c=[cmap(lab / n_labs)],
+                           marker=markers[lab % len(markers)],
+                           s=130 if is_new else 55,
+                           alpha=1.0 if is_new else 0.78,
+                           edgecolors="gold" if is_new else "k",
+                           linewidths=2.2 if is_new else 0.4,
+                           zorder=4 if is_new else 3)
+                ax.annotate(f"L{lab}", (x, y), fontsize=5,
+                            ha="center", va="bottom",
+                            xytext=(0, 4), textcoords="offset points",
+                            alpha=0.75)
+
+            is_sel = int(step) % selection_interval == 0
             ax.set_title(
-                f"PCA scatter — step {step}\nARI={ari:.3f}  |  "
-                f"PC1={var[0]:.1%}  PC2={var[1]:.1%}",
-                fontsize=9
+                f"{label}  —  Step {int(step)}"
+                + ("  ◀ SELECTION" if is_sel else ""),
+                fontsize=10,
+                color="darkred" if is_sel else "black"
             )
-            ax.set_xlabel("PC1", fontsize=8)
-            ax.set_ylabel("PC2", fontsize=8)
+            ax.set_xlim(xlim)
+            ax.set_ylim(ylim)
+            ax.set_xlabel(f"PC1 ({var[0]:.1%} var)", fontsize=8)
+            ax.set_ylabel(f"PC2 ({var[1]:.1%} var)", fontsize=8)
             ax.grid(alpha=0.2)
 
-        # legend: marker = lab
-        handles = [
-            plt.scatter([], [], marker=markers[i % len(markers)],
-                        color="grey", s=40, label=f"Lab {i}")
-            for i in range(n_labs)
-        ]
-        axes[0, 0].legend(handles=handles, fontsize=6, ncol=2,
-                          loc="upper left", title="Lab (marker)")
+            lab_handles = [
+                plt.scatter([], [], c=[cmap(i / n_labs)],
+                            marker=markers[i % len(markers)],
+                            s=40, label=f"Lab {i}")
+                for i in range(n_labs)
+            ]
+            spawn_h = plt.scatter([], [], c="none", marker="o", s=70,
+                                  edgecolors="gold", linewidths=2.2,
+                                  label="Spawned")
+            death_h = plt.scatter([], [], c="red", marker="x", s=90,
+                                  linewidths=2.5, label="Culled")
+            ax.legend(handles=lab_handles + [spawn_h, death_h],
+                      fontsize=6, ncol=2, loc="upper right",
+                      framealpha=0.85)
 
-        # --- time-series panels ---
-        ax_ari = axes[1, 0]
-        ax_sil = axes[1, 1]
+        anim     = FuncAnimation(fig, _draw, frames=frames,
+                                 interval=1000 // fps, blit=False)
+        out_path = IMG_DIR / filename
+        print(f"Saving {filename} ({len(frames)} frames) …")
+        anim.save(str(out_path), writer="pillow", fps=fps, dpi=90)
+        plt.close(fig)
+        print(f"Saved → {out_path}")
 
-        ax_ari.plot(ts_steps, ari_orig, color="#2b7bba", linewidth=2,
-                    label="vs original lab")
-        if any(v is not None for v in ari_fp):
-            ax_ari.plot(ts_steps, ari_fp, color="#2b7bba", linewidth=1.5,
-                        linestyle="--", alpha=0.7, label="vs nearest fingerprint")
-        ax_ari.axhline(0, color="grey", linewidth=0.8, linestyle="--")
-        ax_ari.set_title("Adjusted Rand Index over time\n"
-                         "(1 = clusters recover labs perfectly)", fontsize=9)
-        ax_ari.set_xlabel("Time step")
-        ax_ari.set_ylabel("ARI")
-        ax_ari.set_ylim(-0.1, 1.05)
-        ax_ari.legend(fontsize=7)
-        ax_ari.grid(alpha=0.25)
-
-        ax_sil.plot(ts_steps, sil_scores, color="#d94f3d", linewidth=2)
-        ax_sil.set_title("Silhouette Score over time\n"
-                         "(1 = tight & well-separated clusters)", fontsize=9)
-        ax_sil.set_xlabel("Time step")
-        ax_sil.set_ylabel("Silhouette")
-        ax_sil.set_ylim(-0.1, 1.05)
-        ax_sil.grid(alpha=0.25)
-
-        # vertical lines at selection events
-        if ts_steps:
-            max_step = int(ts_steps[-1])
-            for t in range(int(selection_interval), max_step + 1, int(selection_interval)):
-                for ax in [ax_ari, ax_sil]:
-                    ax.axvline(t, color="grey", alpha=0.35, linewidth=0.9,
-                               linestyle=":", zorder=0)
-
-        plt.savefig(IMG_DIR / filename, dpi=150, bbox_inches="tight")
-        plt.show()
-
-    _analyse(adf_low,  "Specialist (low-skill)",  "cluster_specialist.png",
-             fingerprints_low)
-    _analyse(adf_high, "Generalist (high-skill)", "cluster_generalist.png",
-             fingerprints_high)
+    _animate(adf_low,  "Specialist (low-skill)",  "cluster_anim_specialist.gif")
+    _animate(adf_high, "Generalist (high-skill)", "cluster_anim_generalist.gif")

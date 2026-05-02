@@ -14,9 +14,9 @@ HIGH (generalist):  same peak but wide distribution for other domains
 """
 
 from world import ScienceWorld
-from visualization import plot_lab_history, plot_scenarios, plot_agent_skills
+from visualization import plot_lab_history, plot_scenarios, plot_agent_skills, plot_cluster_animation
 
-STEPS = 200
+STEPS = 300
 
 # specialist scenario — one clear but moderate peak, weaker elsewhere
 # peak ≈ 0.55, other ≈ 0.25 → ratio ~2.2×, gap ~0.30
@@ -51,15 +51,16 @@ def run_scenario(peak_mean, peak_std, other_mean, other_std,
 
 def print_domain_diagnostics(world: ScienceWorld, label: str):
     print(f"\n--- {label} ---")
-    print("Domain | Cap   | Raises | Max Fidelity | Saturation | Models")
-    print("-" * 67)
+    print(f"  Labs: {world.n_labs}  |  Researchers: {len(list(world.agents))}")
+    print("Domain | Cap   | Raises | Max Truth | Saturation | Models")
+    print("-" * 63)
     for d in range(world.n_domains):
         models  = [m for m in world.scientific_models if m.domain == d]
         cap     = world.domain_truthfulness_caps[d]
         raises  = world.domain_cap_raises[d]
-        max_fid = max((m.truthfulness for m in models), default=0.0)
-        sat     = max_fid / cap if cap > 0 else 0.0
-        print(f"  D{d:<3}  | {cap:.2f} |   {raises}    | {max_fid:.2f}         | {sat:.0%}        | {len(models)}")
+        max_t   = max((m.truthfulness for m in models), default=0.0)
+        sat     = max_t / cap if cap > 0 else 0.0
+        print(f"  D{d:<3}  | {cap:.2f} |   {raises}    | {max_t:.2f}      | {sat:.0%}        | {len(models)}")
 
 
 if __name__ == "__main__":
@@ -75,6 +76,16 @@ if __name__ == "__main__":
     print_domain_diagnostics(world_high, "High skill — generalist (μ_other=0.45)")
 
     n_domains = world_low.n_domains
+    n_labs    = world_low.n_labs
+
+    fingerprints_low  = {lab.lab_id: lab.fingerprint for lab in world_low.labs}
+    fingerprints_high = {lab.lab_id: lab.fingerprint for lab in world_high.labs}
+
     plot_lab_history(adf_low, adf_high, n_domains=n_domains)
     plot_scenarios(df_low, df_high, adf_low, adf_high, steps=STEPS)
     plot_agent_skills(adf_low, adf_high, n_domains=n_domains)
+    plot_cluster_animation(
+        adf_low, adf_high,
+        n_labs=n_labs,
+        selection_interval=world_low.selection_interval,
+    )

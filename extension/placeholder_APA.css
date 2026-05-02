@@ -1,0 +1,234 @@
+/* ============================================================
+   APA 7th Edition — HTML stylesheet for Quarto
+   ============================================================ */
+
+/* --- Base -------------------------------------------------- */
+body {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  line-height: 2;
+  color: #000;
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 1in;
+  background: #fff;
+}
+
+/* --- Title block ------------------------------------------- */
+.title {
+  text-align: center;
+  font-size: 12pt;
+  font-weight: bold;
+  margin-bottom: 0;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 12pt;
+  font-weight: normal;
+  margin-top: 0;
+}
+
+.author, .affiliation, .email {
+  text-align: center;
+  font-size: 12pt;
+}
+
+.date {
+  text-align: center;
+  font-size: 12pt;
+}
+
+/* --- Abstract --------------------------------------------- */
+#abstract {
+  margin: 2em 0;
+}
+
+#abstract h2 {
+  text-align: center;
+  font-weight: bold;
+  font-size: 12pt;
+  font-style: normal;
+  border: none;
+  margin-bottom: 0;
+}
+
+#abstract p {
+  text-indent: 0;
+}
+
+/* --- Headings (APA 7 levels) ------------------------------- */
+
+/* Level 1: bold, centred */
+h1, .h1 {
+  font-size: 12pt;
+  font-weight: bold;
+  font-style: normal;
+  text-align: center;
+  margin-top: 2em;
+  margin-bottom: 0;
+  border: none;
+}
+
+/* Level 2: bold, flush left */
+h2, .h2 {
+  font-size: 12pt;
+  font-weight: bold;
+  font-style: normal;
+  text-align: left;
+  margin-top: 1.5em;
+  margin-bottom: 0;
+  border: none;
+}
+
+/* Level 3: bold italic, flush left */
+h3, .h3 {
+  font-size: 12pt;
+  font-weight: bold;
+  font-style: italic;
+  text-align: left;
+  margin-top: 1.5em;
+  margin-bottom: 0;
+  border: none;
+}
+
+/* Level 4: bold, indented, inline */
+h4, .h4 {
+  font-size: 12pt;
+  font-weight: bold;
+  font-style: normal;
+  text-indent: 0.5in;
+  display: inline;
+}
+
+/* Level 5: bold italic, indented, inline */
+h5, .h5 {
+  font-size: 12pt;
+  font-weight: bold;
+  font-style: italic;
+  text-indent: 0.5in;
+  display: inline;
+}
+
+/* --- Body text -------------------------------------------- */
+p {
+  text-indent: 0.5in;
+  margin: 0;
+}
+
+/* No indent on first paragraph after a heading */
+h1 + p, h2 + p, h3 + p, h4 + p, h5 + p,
+h1 + div > p:first-child,
+h2 + div > p:first-child {
+  text-indent: 0;
+}
+
+/* --- Tables (APA: top/mid/bottom rules only) -------------- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  margin: 1.5em 0;
+}
+
+thead tr:first-child th {
+  border-top: 2px solid #000;
+  border-bottom: 1px solid #000;
+  font-weight: bold;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+tbody td {
+  padding: 3px 8px;
+  border: none;
+}
+
+tbody tr:last-child td {
+  border-bottom: 2px solid #000;
+}
+
+/* No vertical borders */
+th, td {
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* --- Figures ---------------------------------------------- */
+figure {
+  margin: 1.5em 0;
+  text-align: center;
+}
+
+figure img {
+  max-width: 100%;
+}
+
+figcaption {
+  text-align: left;
+  font-size: 12pt;
+  margin-top: 0.5em;
+}
+
+figcaption strong:first-child {
+  font-style: italic;
+}
+
+/* --- References (hanging indent) -------------------------- */
+div#refs, .references {
+  margin-top: 2em;
+}
+
+div#refs p, .references p {
+  text-indent: -0.5in;
+  padding-left: 0.5in;
+  margin: 0 0 0 0.5in;
+}
+
+/* --- Block quotes ----------------------------------------- */
+blockquote {
+  margin-left: 0.5in;
+  margin-right: 0.5in;
+  text-indent: 0;
+  font-size: 12pt;
+}
+
+/* --- Table of contents ------------------------------------ */
+#TOC {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  margin-bottom: 2em;
+}
+
+/* --- Code (minimal — output only, not source) ------------- */
+pre, code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10pt;
+}
+
+/* --- Page number header simulation for screen ------------- */
+@media screen {
+  body::before {
+    content: "";
+    display: block;
+    text-align: right;
+    font-size: 12pt;
+    margin-bottom: 1em;
+  }
+}
+
+@media print {
+  @page {
+    margin: 1in;
+    @top-right {
+      content: counter(page);
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+    }
+  }
+  body {
+    padding: 0;
+    max-width: 100%;
+  }
+}

@@ -18,10 +18,21 @@ format:
     documentclass: article
     papersize: a4
     fontsize: 12pt
-    geometry: margin=2.54cm
+    mainfont: "Times New Roman"
+    pdf-engine: xelatex
+    geometry: "top=2.54cm, left=2.54cm, right=2.54cm, bottom=2.54cm"
+    linestretch: 2
+    indent: true
     toc: true
+    toc-depth: 3
     number-sections: true
-    df-print: default
+    include-in-header: extension/apa_preamble.tex
+  html:
+    css: extension/placeholder_APA.css
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
 execute:
   echo: false
 ---

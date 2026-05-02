@@ -1,0 +1,82 @@
+% APA 7th Edition — LaTeX preamble for Quarto PDF
+% Assumes XeLaTeX (set via pdf-engine: xelatex in YAML)
+
+% --- Paragraph indentation (0.5 in = 1.27 cm) ---------------
+\setlength{\parindent}{0.5in}
+\setlength{\parskip}{0pt}
+
+% --- Running head: page number top-right, no rule -----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \rhead{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+}
+
+% --- APA heading styles (titlesec) --------------------------
+\usepackage{titlesec}
+
+% Level 1: bold, centred, no section number prefix
+\titleformat{\section}
+  {\normalfont\bfseries\centering}
+  {}{0em}{}
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+
+% Level 2: bold, flush left
+\titleformat{\subsection}
+  {\normalfont\bfseries}
+  {}{0em}{}
+\titlespacing*{\subsection}{0pt}{12pt}{6pt}
+
+% Level 3: bold italic, flush left
+\titleformat{\subsubsection}
+  {\normalfont\bfseries\itshape}
+  {}{0em}{}
+\titlespacing*{\subsubsection}{0pt}{12pt}{6pt}
+
+% Level 4: bold, indented, inline (period after heading)
+\titleformat{\paragraph}[runin]
+  {\normalfont\bfseries}
+  {}{0.5in}{}[.]
+\titlespacing*{\paragraph}{0.5in}{12pt}{0.5em}
+
+% Level 5: bold italic, indented, inline
+\titleformat{\subparagraph}[runin]
+  {\normalfont\bfseries\itshape}
+  {}{0.5in}{}[.]
+\titlespacing*{\subparagraph}{0.5in}{12pt}{0.5em}
+
+% --- Tables: only horizontal rules (booktabs) ---------------
+\usepackage{booktabs}
+
+% --- References: hanging indent (0.5 in) --------------------
+% Quarto uses CSLReferences / cslhangindent
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{0.5in}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{0.5in}
+\newenvironment{CSLReferences}[2]{%
+  \setlength{\parindent}{0pt}%
+  \setlength{\leftskip}{\cslhangindent}%
+  \setlength{\parskip}{4pt}%
+  \everypar{{\setbox\z@\lastbox}\hangindent\cslhangindent}%
+}{}
+
+% --- No widow / orphan lines --------------------------------
+\widowpenalty=10000
+\clubpenalty=10000
+
+% --- Figures: caption label in italic (APA style) -----------
+\usepackage{caption}
+\DeclareCaptionLabelFormat{apa}{\textit{#1 #2}}
+\captionsetup{
+  labelformat=apa,
+  labelsep=newline,
+  justification=raggedright,
+  singlelinecheck=false,
+  font=normalsize
+}

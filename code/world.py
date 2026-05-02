@@ -244,15 +244,17 @@ class ScienceWorld(mesa.Model):
                 self.domain_truthfulness_caps[domain] + 0.02)
             self.domain_cap_raises[domain] += 1
 
-        max_truth  = max(
+        cap       = self.domain_truthfulness_caps[domain]
+        max_truth = max(
             (m.truthfulness for m in self.scientific_models if m.domain == domain),
             default=0.1
         )
+        # Asymptotic approach to cap: each new model closes a fraction of the
+        # remaining gap, so the cap is approached but never reached.
         alpha        = 2.0 + (max_truth * 10)
-        truthfulness = float(min(
-            self.rng.beta(alpha, 5),
-            self.domain_truthfulness_caps[domain]
-        ))
+        gap          = cap - max_truth
+        gain         = float(self.rng.beta(alpha, 5)) * gap * 0.5
+        truthfulness = float(np.clip(max_truth + gain, 0.01, cap - 1e-4))
 
         complexity = [
             float(np.clip(
@@ -294,9 +296,9 @@ class ScienceWorld(mesa.Model):
             m.decay()
             sat = saturations[m.domain]
             if sat >= 0.90:
-                m.salience = max(0.0, m.salience - 0.15)
+                m.salience = max(0.0, m.salience - 0.075)
             elif sat >= 0.70:
-                m.salience = max(0.0, m.salience - 0.05)
+                m.salience = max(0.0, m.salience - 0.025)
 
         if self._step_count % self.selection_interval == 0:
             self._evolve()

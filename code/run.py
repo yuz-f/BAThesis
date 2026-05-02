@@ -62,6 +62,11 @@ def print_domain_diagnostics(world: ScienceWorld, label: str):
         sat     = max_t / cap if cap > 0 else 0.0
         print(f"  D{d:<3}  | {cap:.2f} |   {raises}    | {max_t:.2f}      | {sat:.0%}        | {len(models)}")
 
+    if world.lab_turnover_events:
+        print(f"\n  Lab turnovers ({len(world.lab_turnover_events)}):")
+        for step, lab_id, old_peak, new_peak in world.lab_turnover_events:
+            print(f"    step {step:>4}: Lab {lab_id}  D{old_peak} → D{new_peak}")
+
 
 if __name__ == "__main__":
     rng = None   # set to an int for reproducible runs

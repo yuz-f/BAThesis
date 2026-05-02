@@ -1,6 +1,17 @@
 % APA 7th Edition — LaTeX preamble for Quarto PDF
 % Assumes XeLaTeX (set via pdf-engine: xelatex in YAML)
 
+% --- Title page: force pagebreak after \maketitle -----------
+\usepackage{etoolbox}
+\apptocmd{\maketitle}{\newpage}{}{}
+
+% --- Abstract environment: centred heading, no indent -------
+\usepackage{abstract}
+\renewcommand{\abstractnamefont}{\normalfont\bfseries\centering}
+\renewcommand{\abstracttextfont}{\normalfont}
+\setlength{\absleftindent}{0pt}
+\setlength{\absrightindent}{0pt}
+
 % --- Paragraph indentation (0.5 in = 1.27 cm) ---------------
 \setlength{\parindent}{0.5in}
 \setlength{\parskip}{0pt}

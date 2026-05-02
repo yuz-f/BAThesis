@@ -7,12 +7,9 @@ author:
     corresponding: true
     email: yuzanilario.flury@uzh.ch
     orcid: 23-780-
-abstract: |
-  Lorem ipsum dolor sit amet, consectetur adipiscing elit.  
-  {{< pagebreak >}}
 date: today
-keywords:
-  - bla bla bla
+bibliography: meta/references.bib
+csl: https://www.zotero.org/styles/apa
 format:
   pdf:
     documentclass: article
@@ -23,12 +20,11 @@ format:
     geometry: "top=2.54cm, left=2.54cm, right=2.54cm, bottom=2.54cm"
     linestretch: 2
     indent: true
-    toc: true
-    toc-depth: 3
+    toc: false
     number-sections: true
     include-in-header: extension/apa_preamble.tex
   html:
-    css: extension/placeholder_APA.css
+    css: extension/APA.css
     toc: true
     toc-depth: 3
     number-sections: true
@@ -36,7 +32,18 @@ format:
 execute:
   echo: false
 ---
-{{< pagebreak >}}
+
+```{=latex}
+\begin{abstract}
+\noindent
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+
+\noindent\textit{Keywords:} keyword one, keyword two, keyword three
+\end{abstract}
+\newpage
+\tableofcontents
+\newpage
+```
 
 # Introduction
 
@@ -44,22 +51,17 @@ Objective of this thesis
 
 ## Motivation and Background
 
-Arguments against traditional Approache
+Psychology is in a period of acute self-examination. The most visible symptom of this is the replication crisis: a large-scale coordinated effort by the Open Science Collaboration found that fewer than half of a representative sample of published psychological findings replicated when tested independently [@OpenScienceCollaboration2015]. This is not a problem unique to psychology — @Ioannidis2005 demonstrated formally that when base rates of true hypotheses are low and statistical power is modest, the majority of nominally significant published findings are expected to be false — but it has been felt with particular force in a discipline that derives much of its applied authority from the reliability of its empirical claims.
 
-1. Data never speak for themselves but require a model to be understood and to be explained.
-2. Verbal theorizing alone ultimately cannot substitute for quantitative analysis.
-3. There are always several alternative models that vie for explanation of data and we must select among them.
-4. Model selection rests on both quantitative evaluation and intellectual and scholarly judgment.
+Two classes of explanation dominate the discussion. The first concerns incentive structures: academic careers are advanced by publications, and publications are advanced by significant results, which creates systematic pressure toward the kind of flexible analysis, selective reporting, and underpowered studies that inflate false-positive rates [@Smaldino2016; @Nissen2016]. The second, and arguably more fundamental, concerns the structure of psychological theorising itself. As @Meehl1978 argued decades before the replication crisis became a household term, the slow progress of soft psychology is rooted in the use of verbal theories that are flexible enough to accommodate almost any pattern of data after the fact. When a theory can be rendered consistent with contradictory findings by adjusting its informal interpretation, it generates no genuine predictions and cannot be falsified. It accumulates asterisks rather than knowledge.
 
-Advantage of Modeling
+These two problems are interrelated in a way that is easy to overlook. Verbal theories are not merely imprecise — they are structurally invisible to researchers in other labs. When the mechanism linking two variables is described only in natural language, two researchers who believe they are studying the same phenomenon may operationalise it so differently that replication is structurally impossible even before any incentive problem arises. A shared formal language would not eliminate researcher degrees of freedom, but it would make theoretical commitments explicit enough to be auditable, comparable, and cumulatively buildable. As @Smaldino2017 argues, computational models force the scientist to commit: assumptions are specified, parameters are quantified, and predictions follow mechanically rather than rhetorically. The very rigidity that makes a computational model seem limiting is what gives it communicative power.
 
-1. Quantitative description of data, by itself, can have considerable psychological implications because it prescribes crucial features of the learning process
-2. Model selection is Important basis of strict quantitative criteria.
-3. the most appropriate way in which to apply a model to the data from more than one individual
+The case for formal models, however, goes beyond the individual researcher. @McElreath2015 demonstrate through a population-level mathematical model that the same statistical parameters — low base rate, low power, high false-positive rate — that make individual findings unreliable also make individual replications unreliable. Under these conditions, not one but multiple successful replications are required before a result carries strong evidential weight, because replication can only function as an epistemological filter if the underlying detection process is reliable. Crucially, the dynamics of scientific communication — which findings get published, which replications are attempted, and how results diffuse through a field — determine whether the community converges on truth regardless of individual good intentions.
 
-It is merely concerned with describing the data!
+@Devezer2019 extend this insight in a directly relevant direction. Using an agent-based model of a scientific community, they show that reproducibility and truth convergence are not equivalent properties, and that the *structure* of the research population matters as much as individual researcher behaviour. Populations dominated by conservative researchers who test only incremental variants of the current consensus achieve high reproducibility while spending little time at the true model. Populations with greater methodological diversity — including researchers willing to explore distant regions of model space — discover the true model faster and are more robust to getting stuck in local optima. Importantly, no single research strategy is uniformly optimal: epistemic diversity, rather than any particular method, is what buffers a scientific community against its own structural limitations [@WeisbergMuldoon2009].
 
-Communication is key for precise replication - water vs. electricity analogy - and computational model have to be naturally more precise than verbal model
+Taken together, these findings suggest that the replication crisis in psychology is not primarily a story of individual bad actors but of a field whose theoretical and communicative infrastructure is too informal to support cumulative progress. The appropriate response is not only procedural reform — pre-registration, power analysis, open data — but a deeper shift toward shared formal frameworks that make theoretical commitments visible, comparable, and testable across labs. Computational modelling is the most mature candidate for such a framework in psychology. It provides the quantitative precision that verbal theories lack, the mechanistic explicitness that enables genuine replication, and — as the work reviewed here demonstrates — the capacity to study the dynamics of scientific communities themselves as objects of inquiry.
 
 ## Model overview
 

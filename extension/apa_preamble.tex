@@ -65,17 +65,10 @@
 \usepackage{booktabs}
 
 % --- References: hanging indent (0.5 in) --------------------
-% Quarto uses CSLReferences / cslhangindent
-\newlength{\cslhangindent}
-\setlength{\cslhangindent}{0.5in}
-\newlength{\csllabelwidth}
-\setlength{\csllabelwidth}{0.5in}
-\newenvironment{CSLReferences}[2]{%
-  \setlength{\parindent}{0pt}%
-  \setlength{\leftskip}{\cslhangindent}%
-  \setlength{\parskip}{4pt}%
-  \everypar{{\setbox\z@\lastbox}\hangindent\cslhangindent}%
-}{}
+% \cslhangindent is defined by Quarto's default template — only set the length
+\AtBeginDocument{%
+  \setlength{\cslhangindent}{0.5in}%
+}
 
 % --- No widow / orphan lines --------------------------------
 \widowpenalty=10000

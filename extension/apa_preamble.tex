@@ -74,6 +74,18 @@
 \widowpenalty=10000
 \clubpenalty=10000
 
+% --- Code blocks: wrap long lines (fvextra extends fancyvrb) ----
+\usepackage{fvextra}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+  breaksymbolleft={},
+  breaklines,
+  commandchars=\\\{\}
+}
+
+% --- TikZ diagrams ------------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, backgrounds}
+
 % --- Figures: caption label in italic (APA style) -----------
 \usepackage{caption}
 \DeclareCaptionLabelFormat{apa}{\textit{#1 #2}}

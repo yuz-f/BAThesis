@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import mesa
 from scientific_model import ScientificModel
@@ -23,8 +25,8 @@ class ScienceWorld(mesa.Model):
 
     Era dynamics:
       - Domain salience decays faster as saturation grows (tiered: ≥0.70 mild, ≥0.90 hard)
-      - Truthfulness cap can only be raised max_cap_raises times per domain
-        → domains eventually hit a true ceiling and become unattractive
+      - Truthfulness cap grows asymptotically toward 0.95 each step
+        → domains keep offering marginal scientific value throughout the run
     """
 
     def __init__(self,
@@ -35,11 +37,14 @@ class ScienceWorld(mesa.Model):
                  peak_skill_std:      float = 0.07,
                  other_skill_mean:    float = 0.25,
                  other_skill_std:     float = 0.06,
-                 selection_interval:  int   = 25,
+                 selection_interval:  int   = 40,
                  cull_fraction:       float = 0.25,
                  mutation_std:        float = 0.04,
-                 max_cap_raises:      int   = 2,
+                 cap_growth_rate:     float = 0.005,
                  lab_close_threshold: float = 0.5,
+                 train_threshold:     float = 0.30,
+                 skill_gain_attempt:  float = 0.06,
+                 skill_gain_train:    float = 0.08,
                  rng: int | None            = None):
         super().__init__(rng=rng)
         self.n_domains          = n_domains
@@ -47,8 +52,11 @@ class ScienceWorld(mesa.Model):
         self.selection_interval = selection_interval
         self.cull_fraction      = cull_fraction
         self.mutation_std       = mutation_std
-        self.max_cap_raises     = max_cap_raises
+        self.cap_growth_rate    = cap_growth_rate
         self.lab_close_threshold = lab_close_threshold
+        self._train_threshold    = train_threshold
+        self._skill_gain_attempt = skill_gain_attempt
+        self._skill_gain_train   = skill_gain_train
         # stored so _maybe_replace_lab can draw new fingerprints consistently
         self._peak_skill_mean   = peak_skill_mean
         self._peak_skill_std    = peak_skill_std
@@ -56,6 +64,10 @@ class ScienceWorld(mesa.Model):
         self._other_skill_std   = other_skill_std
         self.lab_turnover_events: list[tuple] = []  # (step, lab_id, old_peak, new_peak)
         self.scientific_models: list[ScientificModel] = []
+        self.replication_attempts        = 0
+        self.replication_failures        = 0
+        self.domain_replication_attempts = {d: 0 for d in range(n_domains)}
+        self.domain_replication_failures = {d: 0 for d in range(n_domains)}
         self._model_counter     = 0
         self._step_count        = 0
 
@@ -64,9 +76,9 @@ class ScienceWorld(mesa.Model):
         self._cached_saturations:   list[float] = [0.0] * n_domains
         self._cached_domain_counts: dict[int, int] = {d: 0 for d in range(n_domains)}
 
-        self.domain_truthfulness_caps = [float(self.rng.uniform(0.50, 0.80)) for _ in range(n_domains)]
+        # Caps start low so there is room to grow asymptotically toward 0.95
+        self.domain_truthfulness_caps = [float(self.rng.uniform(0.35, 0.60)) for _ in range(n_domains)]
         self.domain_difficulty_floors = [float(self.rng.uniform(0.05, 0.40)) for _ in range(n_domains)]
-        self.domain_cap_raises        = [0] * n_domains
 
         self.datacollector = mesa.DataCollector(
             model_reporters={
@@ -74,9 +86,46 @@ class ScienceWorld(mesa.Model):
                     d: sum(1 for s in m.scientific_models if s.domain == d)
                     for d in range(m.n_domains)
                 },
-                "Avg Domain Capacity": lambda m: float(np.mean(m.domain_truthfulness_caps)),
-                "Avg Reputation":      lambda m: float(np.mean(
+                "Best Actual Truthfulness per Domain": lambda m: {
+                    d: max(
+                        (s.actual_truthfulness for s in m.scientific_models if s.domain == d),
+                        default=0.0
+                    )
+                    for d in range(m.n_domains)
+                },
+                "Best Reported Truthfulness per Domain": lambda m: {
+                    d: max(
+                        (s.reported_truthfulness for s in m.scientific_models if s.domain == d),
+                        default=0.0
+                    )
+                    for d in range(m.n_domains)
+                },
+                "Avg Bias Gap": lambda m: float(np.mean([
+                    s.reported_truthfulness - s.actual_truthfulness
+                    for s in m.scientific_models
+                ])) if m.scientific_models else 0.0,
+                "Avg Top5 Salience": lambda m: float(np.mean(
+                    sorted([s.salience for s in m.scientific_models], reverse=True)[:5]
+                )) if m.scientific_models else 0.0,
+                "Min Top5 Salience": lambda m: float(min(
+                    sorted([s.salience for s in m.scientific_models], reverse=True)[:5]
+                )) if m.scientific_models else 0.0,
+                "Replication Failure Rate": lambda m: float(
+                    m.replication_failures / m.replication_attempts
+                ) if m.replication_attempts > 0 else 0.0,
+                "Domain Failure Rates": lambda m: {
+                    d: m.domain_replication_failures[d] / m.domain_replication_attempts[d]
+                    if m.domain_replication_attempts[d] > 0 else 0.0
+                    for d in range(m.n_domains)
+                },
+                "Avg Reputation": lambda m: float(np.mean(
                     [a.reputation for a in m.agents]
+                )),
+                "Reputation Variance": lambda m: float(np.var(
+                    [a.reputation for a in m.agents]
+                )),
+                "Avg Reputation Lost to Debunk": lambda m: float(np.mean(
+                    [a.reputation_lost_to_debunk for a in m.agents]
                 )),
             },
             agent_reporters={
@@ -89,7 +138,8 @@ class ScienceWorld(mesa.Model):
                 "ExploreSteps":  "explore_steps",
                 "DebunkSteps":   "debunk_steps",
                 "CurrentDomain": "current_domain",
-                "DomainSkills":  lambda a: list(a.domain_skills),
+                "DomainSkills":           lambda a: list(a.domain_skills),
+                "ReputationLostToDebunk": "reputation_lost_to_debunk",
             }
         )
 
@@ -119,7 +169,10 @@ class ScienceWorld(mesa.Model):
                     for d in range(n_domains)
                 ]
                 Researcher(self, lab_id=lab.lab_id, domain_skills=skills,
-                           lab_fingerprint=lab.fingerprint)
+                           lab_fingerprint=lab.fingerprint,
+                           train_threshold=train_threshold,
+                           skill_gain_attempt=skill_gain_attempt,
+                           skill_gain_train=skill_gain_train)
 
         # --- seed one model per domain using lab fingerprints ---
         for d in range(n_domains):
@@ -137,7 +190,7 @@ class ScienceWorld(mesa.Model):
         models = [m for m in self.scientific_models if m.domain == domain]
         if not models:
             return 0.0
-        return max(m.truthfulness for m in models) / self.domain_truthfulness_caps[domain]
+        return max(m.actual_truthfulness for m in models) / self.domain_truthfulness_caps[domain]
 
     def get_lab(self, lab_id: int) -> Lab | None:
         return next((l for l in self.labs if l.lab_id == lab_id), None)
@@ -163,7 +216,10 @@ class ScienceWorld(mesa.Model):
             lab    = self.get_lab(lab_id)
             loser.remove()
             Researcher(self, lab_id=lab_id, domain_skills=child_skills,
-                       lab_fingerprint=lab.fingerprint if lab else None)
+                       lab_fingerprint=lab.fingerprint if lab else None,
+                       train_threshold=self._train_threshold,
+                       skill_gain_attempt=self._skill_gain_attempt,
+                       skill_gain_train=self._skill_gain_train)
 
         self._maybe_replace_lab()
 
@@ -230,30 +286,50 @@ class ScienceWorld(mesa.Model):
 
     def spawn_model(self, origin_lab_id: int, domain: int,
                     researcher_skills: list[float],
-                    initial_salience: float = 0.5):
+                    initial_salience: float = 0.5,
+                    parent_uid: int | None = None,
+                    author_agent_id: int | None = None,
+                    breakthrough: bool = False):
         """
         Publish a new ScientificModel.
 
         Complexity is drawn from the researcher's current skill profile — not
         the lab's fingerprint — so models reflect individual expertise, which
         may have diverged from the lab baseline through assimilation.
-        """
-        if (self.domain_saturation(domain) >= 0.98
-                and self.domain_cap_raises[domain] < self.max_cap_raises):
-            self.domain_truthfulness_caps[domain] = min(1.0,
-                self.domain_truthfulness_caps[domain] + 0.02)
-            self.domain_cap_raises[domain] += 1
 
+        breakthrough=True produces a paradigm-shifting model:
+          - Closes a much larger fraction of the truthfulness gap to the cap
+            (drawn from Beta(high_alpha, 2) rather than Beta(low_alpha, 5))
+          - Starts with salience 0.90 instead of the default 0.50, immediately
+            dominating the attention landscape of its domain
+          - Carries lower publication bias (breakthroughs are usually more
+            carefully vetted before publication)
+        """
         cap       = self.domain_truthfulness_caps[domain]
+        # Frontier is tracked via actual truthfulness — the real knowledge state
         max_truth = max(
-            (m.truthfulness for m in self.scientific_models if m.domain == domain),
+            (m.actual_truthfulness for m in self.scientific_models if m.domain == domain),
             default=0.1
         )
-        # Asymptotic approach to cap: each new model closes a fraction of the
-        # remaining gap, so the cap is approached but never reached.
-        alpha        = 2.0 + (max_truth * 10)
-        gap          = cap - max_truth
-        gain         = float(self.rng.beta(alpha, 5)) * gap * 0.5
+        gap = cap - max_truth
+
+        if breakthrough:
+            # Breakthrough: high-alpha Beta concentrates gain near the top of
+            # the remaining gap — nearly reaches the cap in one step.
+            alpha        = 12.0 + (max_truth * 10)
+            gain         = float(self.rng.beta(alpha, 2)) * gap * 0.85
+            # Breakthroughs are more carefully scrutinised before publication
+            bias_inflation = float(np.clip(self.rng.normal(0.05, 0.03), 0.0, 0.15))
+            initial_salience = 0.90
+        else:
+            # Normal publication: asymptotic approach to cap
+            alpha        = 2.0 + (max_truth * 10)
+            gain         = float(self.rng.beta(alpha, 5)) * gap * 0.5
+            # Publication bias: reported quality inflated above actual at spawn.
+            # Drawn from N(0.10, 0.05) clipped to [0, 0.30], representing selective
+            # reporting and p-hacking endemic in published literature.
+            bias_inflation = float(np.clip(self.rng.normal(0.10, 0.05), 0.0, 0.30))
+
         truthfulness = float(np.clip(max_truth + gain, 0.01, cap - 1e-4))
 
         complexity = [
@@ -271,6 +347,9 @@ class ScienceWorld(mesa.Model):
             complexity=complexity,
             truthfulness=truthfulness,
             origin_lab_id=origin_lab_id,
+            parent_uid=parent_uid,
+            bias_inflation=bias_inflation,
+            author_agent_id=author_agent_id,
         )
         m.salience = initial_salience
         self.scientific_models.append(m)
@@ -299,6 +378,14 @@ class ScienceWorld(mesa.Model):
                 m.salience = max(0.0, m.salience - 0.075)
             elif sat >= 0.70:
                 m.salience = max(0.0, m.salience - 0.025)
+
+        # Caps grow asymptotically toward 0.95 each step
+        for d in range(self.n_domains):
+            self.domain_truthfulness_caps[d] = min(
+                0.95,
+                self.domain_truthfulness_caps[d]
+                + self.cap_growth_rate * (0.95 - self.domain_truthfulness_caps[d])
+            )
 
         if self._step_count % self.selection_interval == 0:
             self._evolve()

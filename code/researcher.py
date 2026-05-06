@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import mesa
 from collections import defaultdict
@@ -29,8 +31,8 @@ class Researcher(mesa.Agent):
 
     def __init__(self, model, lab_id: int, domain_skills: list[float],
                  lab_fingerprint:    list[float] | None = None,
-                 train_threshold:    float = 0.2,
-                 skill_gain_attempt: float = 0.05,
+                 train_threshold:    float = 0.30,
+                 skill_gain_attempt: float = 0.06,
                  skill_gain_train:   float = 0.08):
         super().__init__(model)
 
@@ -46,8 +48,9 @@ class Researcher(mesa.Agent):
         self.skill_gain_train   = skill_gain_train
 
         # outcome trackers
-        self.publications    = 0
-        self.reputation      = 0.0
+        self.publications              = 0
+        self.reputation                = 0.0
+        self.reputation_lost_to_debunk = 0.0   # cumulative reputation lost when own models debunked
         self.training_steps  = 0
         self.exploit_steps   = 0
         self.explore_steps   = 0
@@ -59,6 +62,11 @@ class Researcher(mesa.Agent):
         # work-in-progress state
         self.current_target: ScientificModel | None = None
         self.work_progress:  int = 0
+
+        # per-step Pearson cache — refreshed at start of step()
+        _sa = np.array(domain_skills, dtype=float)
+        self._sc_cache   = _sa - _sa.mean()
+        self._ssq_cache  = float(np.dot(self._sc_cache, self._sc_cache))
 
     # --- derived properties ---
 
@@ -95,16 +103,13 @@ class Researcher(mesa.Agent):
 
     def _pearson_cor(self, m: ScientificModel) -> float:
         """
-        Inline Pearson correlation between skill vector and model complexity.
-        Faster than np.corrcoef — computes one scalar directly, no matrix overhead.
+        Pearson correlation between skill vector and model complexity.
+        Uses per-step cached skill stats and pre-computed model stats to avoid
+        redundant array allocations across the many calls within one step.
         Returns 0.0 when either vector has zero variance (uniform profiles).
         """
-        skill = np.array(self.domain_skills)
-        comp  = np.array(m.complexity)
-        sc    = skill - skill.mean()
-        cc    = comp  - comp.mean()
-        denom = np.sqrt((sc * sc).sum() * (cc * cc).sum())
-        return float(np.dot(sc, cc) / denom) if denom > 1e-10 else 0.0
+        denom = np.sqrt(self._ssq_cache * m._comp_ssq)
+        return float(np.dot(self._sc_cache, m._comp_centered) / denom) if denom > 1e-10 else 0.0
 
     def _similarity(self, m: ScientificModel) -> float:
         """proficiency × max(0, COR) — how well the researcher fits this model."""
@@ -113,11 +118,20 @@ class Researcher(mesa.Agent):
 
     def success_probability(self, m: ScientificModel) -> float:
         """
-        P = max(_similarity, proficiency × 0.5)
-        Floor ensures a researcher with genuine domain skill always has a chance.
+        P = (sim + avg × (1 − sim)) × (actual / reported)
+
+        Profile alignment (sim) drives success when the researcher's skill
+        distribution matches the model's complexity profile. Average competence
+        (avg) raises the floor for generalists. The truth ratio (actual /
+        reported) discounts success by the publication bias gap — a model
+        inflated 20% above its actual quality is ~20% more likely to fail
+        independent replication, regardless of researcher skill.
         """
-        proficiency = self.domain_skills[m.domain]
-        return float(np.clip(max(self._similarity(m), proficiency * 0.5), 0.0, 1.0))
+        sim = self._similarity(m)
+        avg = float(np.mean(self.domain_skills))
+        base = sim + avg * (1.0 - sim)
+        truth_ratio = m.actual_truthfulness / max(m.reported_truthfulness, 1e-8)
+        return float(np.clip(base * truth_ratio, 0.0, 1.0))
 
     def _split_candidates(self):
         """
@@ -139,18 +153,30 @@ class Researcher(mesa.Agent):
     def _exploit_value(self, m: ScientificModel) -> float:
         """
         Expected gain per step from committing to this model.
-          = (success_prob × truthfulness × salience) / (work_required × (1 + own_pubs))
+          = (success_prob × reported_truthfulness × salience) / (work_required × (1 + own_pubs))
+        Agents perceive reported_truthfulness when evaluating potential payoff.
         """
-        return (self.success_probability(m) * m.truthfulness * m.salience
+        return (self.success_probability(m) * m.reported_truthfulness * m.salience
                 / (self._work_required(m) * (1.0 + self.domain_pubs[m.domain])))
 
     def _invest_value(self, m: ScientificModel) -> float:
         """
-        Expected marginal gain from one step of training toward this model.
-          = sigmoid_gain(current_skill) × truthfulness
+        Expected marginal gain from training toward this model, discounted by
+        the time cost to make it exploitable.
+
+          steps_needed = gap_above_threshold / gain_per_step
+          value = sigmoid_gain × truthfulness / (1 + steps_needed)
+
+        A model just above the threshold costs ~1 extra step and is barely
+        discounted. A model 0.30 above the threshold might cost 10+ steps
+        and is heavily discounted — making nearby exploit candidates more
+        attractive by comparison.
         """
-        current = self.domain_skills[m.domain]
-        return self._sigmoid_gain(current, self.skill_gain_train) * m.truthfulness
+        current        = self.domain_skills[m.domain]
+        gain_per_step  = max(self._sigmoid_gain(current, self.skill_gain_train), 1e-8)
+        gap_above      = max(0.0, m.complexity[m.domain] - current - self.train_threshold)
+        steps_needed   = gap_above / gain_per_step
+        return self._sigmoid_gain(current, self.skill_gain_train) * m.reported_truthfulness / (1.0 + steps_needed)
 
     def _explore_value(self, domain: int) -> float:
         """
@@ -172,41 +198,87 @@ class Researcher(mesa.Agent):
             self.publications += 1
             self.domain_pubs[domain] += 1
         new_model = self.model.scientific_models[-1]
-        self.reputation += new_model.truthfulness * new_model.salience
+        # Reputation from publishing reflects perceived (reported) quality
+        self.reputation += new_model.reported_truthfulness * new_model.salience
 
     def _explore(self, domain: int):
-        """Publish a new model in an underexplored domain."""
+        """
+        Publish a new model in an underexplored domain.
+
+        Breakthrough mechanic: with a small skill-dependent probability, the
+        published model is a paradigm-shifting breakthrough.  The probability
+        scales with skill² so only genuinely expert researchers produce them
+        (≈3% at skill=0.55, ≈8% at skill=0.90, <1% at skill=0.25).
+
+        A breakthrough also triggers a salience shock to the domain: all
+        existing models in that domain lose 65% of their current salience as
+        the field's attention pivots to the new result.  This creates era
+        dynamics — trend cycles where a dominant paradigm is periodically
+        displaced rather than accumulating indefinitely.
+        """
+        skill          = self.domain_skills[domain]
+        is_breakthrough = self.random.random() < skill ** 2 * 0.10
+
         self.model.spawn_model(
             origin_lab_id=self.lab_id,
             domain=domain,
             researcher_skills=self.domain_skills,
+            author_agent_id=self.unique_id,
+            breakthrough=is_breakthrough,
         )
         self.current_domain = domain
+
+        if is_breakthrough:
+            # Salience shock: incumbent models in this domain fade as the
+            # community pivots toward the new paradigm.
+            new_uid = self.model.scientific_models[-1].uid
+            for m in self.model.scientific_models:
+                if m.domain == domain and m.uid != new_uid:
+                    m.salience = max(0.0, m.salience * 0.35)
+
         self._record_spawn(domain)
 
     def _debunk(self, target: ScientificModel):
         """
         Attempt to disprove a published model.
 
-        Triggered as a byproduct of failed high-proficiency exploitation — an
-        expert who cannot replicate a model is well-placed to challenge it.
-
-        Success: truthfulness drops (×0.75), salience is dented, researcher
-                 earns a publication and reputation proportional to how truthful
-                 the model was — the bigger the scalp, the larger the reward.
-        Failure: minor assimilation from engaging with the model's complexity.
+        Triggered as a byproduct of failed moderate-to-high-proficiency
+        exploitation. On success, the target model loses truthfulness and
+        salience, and a cascade propagates partial damage to any models that
+        were built directly on the debunked model (parent_uid == target.uid).
+        This simulates paradigm disruption: when a foundational result is
+        overturned, derivative work is also undermined.
         """
         self.current_domain = target.domain
         proficiency  = self.domain_skills[target.domain]
-        success_prob = proficiency * (1.0 - target.truthfulness)
+        # Debunk success depends on how wrong the model actually is
+        success_prob = proficiency * (1.0 - target.actual_truthfulness)
         if self.random.random() < success_prob:
-            reward = target.truthfulness * target.salience
+            # Reward reflects actual quality exposed — discovering a real flaw
+            reward = target.actual_truthfulness * target.salience
             self.reputation                 += reward
             self.publications               += 1
             self.domain_pubs[target.domain] += 1
-            target.truthfulness = max(0.01, target.truthfulness * 0.75)
-            target.salience     = max(0.0,  target.salience - 0.15)
+            target.actual_truthfulness = max(0.01, target.actual_truthfulness * 0.75)
+            target.salience            = max(0.0,  target.salience - 0.15)
             self._assimilate(target, self.skill_gain_attempt * 0.5)
+
+            # penalise original author — they lose half of what the debunker gains
+            if target.author_agent_id is not None:
+                author = next(
+                    (a for a in self.model.agents
+                     if a.unique_id == target.author_agent_id), None
+                )
+                if author is not None:
+                    penalty = reward * 0.5
+                    author.reputation              = max(0.0, author.reputation - penalty)
+                    author.reputation_lost_to_debunk += penalty
+
+            # cascade: derivative models lose partial truthfulness and salience
+            for m in self.model.scientific_models:
+                if m.parent_uid == target.uid:
+                    m.actual_truthfulness = max(0.01, m.actual_truthfulness * 0.88)
+                    m.salience            = max(0.0,  m.salience - 0.08)
         else:
             self._assimilate(target, self.skill_gain_attempt * 0.2)
         self.debunk_steps += 1
@@ -260,10 +332,13 @@ class Researcher(mesa.Agent):
         Failure: partial assimilation scaled by profile alignment.
         """
         self.current_domain = target.domain
+        self.model.replication_attempts += 1
+        self.model.domain_replication_attempts[target.domain] += 1
         if self.random.random() < self.success_probability(target):
             self.publications += 1
             self.domain_pubs[target.domain] += 1
-            self.reputation += target.truthfulness * target.salience
+            # Reputation reflects reported quality — what the community values
+            self.reputation += target.reported_truthfulness * target.salience
             target.cite()
             self._assimilate(target, self.skill_gain_attempt)
 
@@ -277,15 +352,38 @@ class Researcher(mesa.Agent):
                     domain=target.domain,
                     researcher_skills=self.domain_skills,
                     initial_salience=0.7,
+                    parent_uid=target.uid,
+                    author_agent_id=self.unique_id,
                 )
                 self._record_spawn(target.domain, count_as_pub=False)
         else:
+            self.model.replication_failures += 1
+            self.model.domain_replication_failures[target.domain] += 1
             # failed attempt — partial assimilation, scaled by how foreign the work is
             effective_rate = self.skill_gain_attempt * 0.3 * self._profile_alignment(target)
             self._assimilate(target, effective_rate)
-            # skilled researchers who fail replication may identify flaws
+
             proficiency = self.domain_skills[target.domain]
-            if proficiency > 0.65 and self.random.random() < proficiency * 0.15:
+
+            # Expert truth correction: sufficiently skilled researchers who fail
+            # replication have enough domain knowledge to recognise that the
+            # failure reflects the model's flaw, not their own incompetence.
+            # Each expert failure erodes actual_truthfulness by a small amount
+            # proportional to expertise and the publication-bias inflation gap.
+            # This creates a slow, continuous truth-revelation process distinct
+            # from the large discrete correction of a formal debunk.
+            #
+            # The correction is larger when the gap between reported and actual
+            # is wider — highly inflated models are exposed faster.
+            if proficiency > 0.50:
+                gap_inflation = target.reported_truthfulness - target.actual_truthfulness
+                correction    = proficiency * 0.015 * (1.0 + gap_inflation)
+                target.actual_truthfulness = max(0.01,
+                                                 target.actual_truthfulness - correction)
+
+            # Discrete debunk: high-proficiency researchers may mount a formal
+            # challenge (larger, rarer correction than the continuous erosion above)
+            if proficiency > 0.35 and self.random.random() < proficiency * 0.40:
                 self._debunk(target)
 
     # --- probabilistic decision ---
@@ -294,10 +392,13 @@ class Researcher(mesa.Agent):
         """
         Assemble top candidates by expected value, then choose probabilistically.
 
-          weight(model)   = match + salience + truthfulness
-          weight(explore) = skill in that domain (no model to inspect)
+          weight(model)   = (match + salience + truthfulness) × (skill / mean_skill)
+          weight(explore) = 1.5 × skill² / mean_skill
 
-        Top 3 models by value + explore option — capped to keep explore competitive.
+        The skill-relative bias (skill / mean_skill) is a parameter-free home-domain
+        pull derived directly from the skill vector. Specialists (~2× on their peak)
+        are pulled strongly toward familiar work; generalists (~1× everywhere) have
+        no directional bias.
         """
         scored = []
         for m in exploit:
@@ -305,17 +406,20 @@ class Researcher(mesa.Agent):
         for m in invest:
             scored.append(('invest',  m, self._invest_value(m)))
 
-        top = sorted(scored, key=lambda x: x[2], reverse=True)[:3]
+        top = sorted(scored, key=lambda x: x[2], reverse=True)[:2]
         top.append(('explore', best_domain, self._explore_value(best_domain)))
 
+        mean_sk = float(np.mean(self.domain_skills)) + 1e-8
         weights = []
         for action, target, _ in top:
+            domain     = target if action == 'explore' else target.domain
+            skill_bias = (self.domain_skills[domain] / mean_sk) ** 0.5
             if action == 'explore':
-                w = self.domain_skills[target]
+                w = 1.5 * self.domain_skills[target] * skill_bias
             else:
                 w = (self._similarity(target)
                      + target.salience
-                     + target.truthfulness)
+                     + target.reported_truthfulness) * skill_bias
             weights.append(max(w, 1e-6))
 
         probs = [w / sum(weights) for w in weights]
@@ -325,6 +429,11 @@ class Researcher(mesa.Agent):
     # --- step ---
 
     def step(self):
+        # refresh Pearson cache — skills may have changed since last step
+        _sa = np.array(self.domain_skills, dtype=float)
+        self._sc_cache  = _sa - _sa.mean()
+        self._ssq_cache = float(np.dot(self._sc_cache, self._sc_cache))
+
         if self.current_target is not None:
             self.current_domain  = self.current_target.domain
             self.work_progress  += 1
@@ -373,5 +482,5 @@ class Researcher(mesa.Agent):
         excess[peak]  = 0.0
         deficit[peak] = 0.0
         self.domain_skills = np.clip(
-            skills - 0.004 * excess + 0.002 * deficit, 0.01, 0.95
+            skills - 0.002 * excess + 0.001 * deficit, 0.01, 0.95
         ).tolist()

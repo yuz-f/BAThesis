@@ -14,7 +14,10 @@ HIGH (generalist):  same peak but wide distribution for other domains
 """
 
 from world import ScienceWorld
-from visualization import plot_lab_history, plot_scenarios, plot_agent_skills, plot_cluster_animation
+from visualization import (
+    plot_lab_history, plot_scenarios, plot_agent_skills,
+    plot_cluster_animation, plot_knowledge_quality, plot_action_over_time,
+)
 
 STEPS = 300
 
@@ -26,11 +29,11 @@ LOW_OTHER_MEAN = 0.25
 LOW_OTHER_STD  = 0.06
 
 # generalist scenario — same moderate peak, broader floor with more overlap
-# peak ≈ 0.55, other ≈ 0.40 → ratio ~1.4×, gap ~0.15
+# peak ≈ 0.55, other ≈ 0.33 → ratio ~1.7×, gap ~0.22
 HIGH_PEAK_MEAN  = 0.55
 HIGH_PEAK_STD   = 0.08
-HIGH_OTHER_MEAN = 0.40
-HIGH_OTHER_STD  = 0.10
+HIGH_OTHER_MEAN = 0.33
+HIGH_OTHER_STD  = 0.08
 
 
 def run_scenario(peak_mean, peak_std, other_mean, other_std,
@@ -52,15 +55,14 @@ def run_scenario(peak_mean, peak_std, other_mean, other_std,
 def print_domain_diagnostics(world: ScienceWorld, label: str):
     print(f"\n--- {label} ---")
     print(f"  Labs: {world.n_labs}  |  Researchers: {len(list(world.agents))}")
-    print("Domain | Cap   | Raises | Max Truth | Saturation | Models")
-    print("-" * 63)
+    print("Domain | Cap   | Max Truth | Saturation | Models")
+    print("-" * 53)
     for d in range(world.n_domains):
-        models  = [m for m in world.scientific_models if m.domain == d]
-        cap     = world.domain_truthfulness_caps[d]
-        raises  = world.domain_cap_raises[d]
-        max_t   = max((m.truthfulness for m in models), default=0.0)
-        sat     = max_t / cap if cap > 0 else 0.0
-        print(f"  D{d:<3}  | {cap:.2f} |   {raises}    | {max_t:.2f}      | {sat:.0%}        | {len(models)}")
+        models = [m for m in world.scientific_models if m.domain == d]
+        cap    = world.domain_truthfulness_caps[d]
+        max_t  = max((m.actual_truthfulness for m in models), default=0.0)
+        sat    = max_t / cap if cap > 0 else 0.0
+        print(f"  D{d:<3}  | {cap:.2f} | {max_t:.2f}      | {sat:.0%}        | {len(models)}")
 
     if world.lab_turnover_events:
         print(f"\n  Lab turnovers ({len(world.lab_turnover_events)}):")
@@ -77,20 +79,21 @@ if __name__ == "__main__":
     world_high, df_high, adf_high = run_scenario(
         HIGH_PEAK_MEAN, HIGH_PEAK_STD, HIGH_OTHER_MEAN, HIGH_OTHER_STD, rng=rng)
 
-    print_domain_diagnostics(world_low,  "Low skill  — specialist (μ_other=0.05)")
-    print_domain_diagnostics(world_high, "High skill — generalist (μ_other=0.45)")
+    print_domain_diagnostics(world_low,  "Specialist (μ_other=0.25)")
+    print_domain_diagnostics(world_high, "Generalist (μ_other=0.33)")
 
     n_domains = world_low.n_domains
     n_labs    = world_low.n_labs
 
-    fingerprints_low  = {lab.lab_id: lab.fingerprint for lab in world_low.labs}
-    fingerprints_high = {lab.lab_id: lab.fingerprint for lab in world_high.labs}
-
-    plot_lab_history(adf_low, adf_high, n_domains=n_domains)
+    # thesis figures
     plot_scenarios(df_low, df_high, adf_low, adf_high, steps=STEPS)
+    plot_knowledge_quality(df_low, df_high)
+    plot_action_over_time(adf_low, adf_high)
     plot_agent_skills(adf_low, adf_high, n_domains=n_domains)
     plot_cluster_animation(
         adf_low, adf_high,
         n_labs=n_labs,
         selection_interval=world_low.selection_interval,
     )
+    # debug figures (saved to meta/img/debug/)
+    plot_lab_history(adf_low, adf_high, n_domains=n_domains)

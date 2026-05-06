@@ -20,13 +20,17 @@ class Researcher(mesa.Agent):
       - Invest:  train toward a model they cannot yet implement
       - Explore: publish a new model in an underexplored domain
 
-    The researcher belongs to a lab for their entire career — they do not
-    switch labs. Diversity in skill profiles emerges organically through
-    the models they choose to work on.
+    Realism additions vs. v1:
+      - Career stages: young researchers explore more; seniors exploit more
+      - Social learning: lab-mates' recent domain successes boost action weights
+      - Matthew effect: high-reputation researchers are drawn toward
+        high-salience (prominent) models
+      - Misconduct: under competitive pressure, researchers inflate reported
+        quality beyond the standard publication-bias draw
+      - Competitive pressure → publication bias: researchers below the
+        median reputation inflate bias at spawn time (via world._median_rep)
     """
 
-    # Fraction of the full assimilation rate applied to domains
-    # other than the model's primary domain.
     SECONDARY_LEARN_FACTOR = 0.12
 
     def __init__(self, model, lab_id: int, domain_skills: list[float],
@@ -38,8 +42,6 @@ class Researcher(mesa.Agent):
 
         self.lab_id         = lab_id
         self.domain_skills  = domain_skills
-        # Fixed institutional anchor — skills drift back toward this baseline
-        # for non-peak domains that rise above it (slow forgetting of unused skills).
         self.lab_fingerprint = (list(lab_fingerprint)
                                 if lab_fingerprint is not None
                                 else list(domain_skills))
@@ -50,7 +52,7 @@ class Researcher(mesa.Agent):
         # outcome trackers
         self.publications              = 0
         self.reputation                = 0.0
-        self.reputation_lost_to_debunk = 0.0   # cumulative reputation lost when own models debunked
+        self.reputation_lost_to_debunk = 0.0
         self.training_steps  = 0
         self.exploit_steps   = 0
         self.explore_steps   = 0
@@ -58,6 +60,9 @@ class Researcher(mesa.Agent):
         self.current_domain: int | None = None
         self.domain_pubs: defaultdict[int, int] = defaultdict(int)
         self.reputation_at_last_cull = 0.0
+
+        # career stage — incremented every step; drives explore-bias decay
+        self.career_age: int = 0
 
         # work-in-progress state
         self.current_target: ScientificModel | None = None
@@ -72,7 +77,6 @@ class Researcher(mesa.Agent):
 
     @property
     def home_domain(self) -> int:
-        """Domain where this researcher has highest skill."""
         return int(np.argmax(self.domain_skills))
 
     @property
@@ -92,41 +96,20 @@ class Researcher(mesa.Agent):
         return base_rate * current * (1.0 - current) * 4.0
 
     def _work_required(self, m: ScientificModel) -> int:
-        """
-        Steps needed to implement a model.
-        Scales with complexity and domain saturation; experts work faster.
-        """
         base         = max(3, round(m.complexity[m.domain] * 8))
         saturation   = self.model._cached_saturations[m.domain]
-        skill_factor = 0.5 + self.domain_skills[m.domain]  # range ~0.51–1.45
+        skill_factor = 0.5 + self.domain_skills[m.domain]
         return max(1, round(base * (1.0 + saturation * 0.5) / skill_factor))
 
     def _pearson_cor(self, m: ScientificModel) -> float:
-        """
-        Pearson correlation between skill vector and model complexity.
-        Uses per-step cached skill stats and pre-computed model stats to avoid
-        redundant array allocations across the many calls within one step.
-        Returns 0.0 when either vector has zero variance (uniform profiles).
-        """
         denom = np.sqrt(self._ssq_cache * m._comp_ssq)
         return float(np.dot(self._sc_cache, m._comp_centered) / denom) if denom > 1e-10 else 0.0
 
     def _similarity(self, m: ScientificModel) -> float:
-        """proficiency × max(0, COR) — how well the researcher fits this model."""
         cor = max(0.0, self._pearson_cor(m))
         return max(1e-6, self.domain_skills[m.domain] * cor)
 
     def success_probability(self, m: ScientificModel) -> float:
-        """
-        P = (sim + avg × (1 − sim)) × (actual / reported)
-
-        Profile alignment (sim) drives success when the researcher's skill
-        distribution matches the model's complexity profile. Average competence
-        (avg) raises the floor for generalists. The truth ratio (actual /
-        reported) discounts success by the publication bias gap — a model
-        inflated 20% above its actual quality is ~20% more likely to fail
-        independent replication, regardless of researcher skill.
-        """
         sim = self._similarity(m)
         avg = float(np.mean(self.domain_skills))
         base = sim + avg * (1.0 - sim)
@@ -134,11 +117,6 @@ class Researcher(mesa.Agent):
         return float(np.clip(base * truth_ratio, 0.0, 1.0))
 
     def _split_candidates(self):
-        """
-        Partition all available models into:
-          exploit — gap ≤ threshold: researcher can attempt this now
-          invest  — gap > threshold: researcher must train first
-        """
         exploit, invest = [], []
         for m in self.model.scientific_models:
             gap = m.complexity[m.domain] - self.domain_skills[m.domain]
@@ -153,25 +131,31 @@ class Researcher(mesa.Agent):
     def _exploit_value(self, m: ScientificModel) -> float:
         """
         Expected gain per step from committing to this model.
-          = (success_prob × reported_truthfulness × salience) / (work_required × (1 + own_pubs))
-        Agents perceive reported_truthfulness when evaluating potential payoff.
+
+        Three realism extensions over v1:
+          - Social learning: domains where labmates recently succeeded get a
+            bonus (Crane 1972 — invisible colleges pull focus)
+          - Matthew effect: high-reputation researchers are amplified toward
+            high-salience models (Merton 1968)
+          - Both factors are bounded (tanh) so they nudge rather than dominate
         """
-        return (self.success_probability(m) * m.reported_truthfulness * m.salience
+        # Social learning: labmates' recent success in this domain
+        social_signal = (
+            self.model.lab_domain_successes
+            .get(self.lab_id, {})
+            .get(m.domain, 0.0)
+        )
+        social_bonus = 1.0 + self.model.social_learn_strength * np.tanh(social_signal)
+
+        # Matthew effect: prominent models are even more attractive for elite researchers
+        matthew_factor = 1.0 + 0.30 * np.tanh(self.reputation * 0.05)
+        effective_salience = m.salience * matthew_factor
+
+        base = (self.success_probability(m) * m.reported_truthfulness * effective_salience
                 / (self._work_required(m) * (1.0 + self.domain_pubs[m.domain])))
+        return base * social_bonus
 
     def _invest_value(self, m: ScientificModel) -> float:
-        """
-        Expected marginal gain from training toward this model, discounted by
-        the time cost to make it exploitable.
-
-          steps_needed = gap_above_threshold / gain_per_step
-          value = sigmoid_gain × truthfulness / (1 + steps_needed)
-
-        A model just above the threshold costs ~1 extra step and is barely
-        discounted. A model 0.30 above the threshold might cost 10+ steps
-        and is heavily discounted — making nearby exploit candidates more
-        attractive by comparison.
-        """
         current        = self.domain_skills[m.domain]
         gain_per_step  = max(self._sigmoid_gain(current, self.skill_gain_train), 1e-8)
         gap_above      = max(0.0, m.complexity[m.domain] - current - self.train_threshold)
@@ -179,45 +163,47 @@ class Researcher(mesa.Agent):
         return self._sigmoid_gain(current, self.skill_gain_train) * m.reported_truthfulness / (1.0 + steps_needed)
 
     def _explore_value(self, domain: int) -> float:
-        """
-        Value of publishing a new model in this domain.
-          = skill × (1 − saturation) / (1 + log(1 + n_models) + own_pubs)
-        Saturated domains offer little marginal scientific value.
-        """
         n_models   = self.model._cached_domain_counts.get(domain, 0)
         saturation = self.model._cached_saturations[domain]
         return (self.domain_skills[domain] * max(0.0, 1.0 - saturation)
                 / (1.0 + np.log1p(n_models) + self.domain_pubs[domain]))
 
-
     # --- actions ---
 
     def _record_spawn(self, domain: int, count_as_pub: bool = True):
-        """Update trackers after a model has been spawned."""
         if count_as_pub:
             self.publications += 1
             self.domain_pubs[domain] += 1
         new_model = self.model.scientific_models[-1]
-        # Reputation from publishing reflects perceived (reported) quality
         self.reputation += new_model.reported_truthfulness * new_model.salience
 
     def _explore(self, domain: int):
         """
-        Publish a new model in an underexplored domain.
+        Publish a new Scientific Model in an underexplored domain.
 
-        Breakthrough mechanic: with a small skill-dependent probability, the
-        published model is a paradigm-shifting breakthrough.  The probability
-        scales with skill² so only genuinely expert researchers produce them
-        (≈3% at skill=0.55, ≈8% at skill=0.90, <1% at skill=0.25).
+        Misconduct pathway (new in v2):
+          Under competitive pressure — when the researcher's reputation falls
+          below the field median — there is an elevated probability of
+          strategic quality inflation (reporting higher than actual).
+          The base misconduct probability (world.misconduct_base_rate) scales
+          up with pressure so that low-reputation researchers inflate more
+          (Fang et al. 2012: misconduct accounts for 67% of retractions).
 
-        A breakthrough also triggers a salience shock to the domain: all
-        existing models in that domain lose 65% of their current salience as
-        the field's attention pivots to the new result.  This creates era
-        dynamics — trend cycles where a dominant paradigm is periodically
-        displaced rather than accumulating indefinitely.
+        Breakthrough mechanic (unchanged from v1):
+          Skill²-scaled probability of a paradigm-shifting publication that
+          displaces incumbent models via salience shock.
         """
-        skill          = self.domain_skills[domain]
+        skill           = self.domain_skills[domain]
         is_breakthrough = self.random.random() < skill ** 2 * 0.10
+
+        # Competitive pressure → misconduct probability
+        median_rep = self.model._median_rep
+        if median_rep > 0:
+            pressure = float(np.clip(1.0 - self.reputation / median_rep, 0.0, 1.0))
+        else:
+            pressure = 0.0
+        misconduct_prob = self.model.misconduct_base_rate * (1.0 + pressure * 2.0)
+        is_misconduct   = (not is_breakthrough) and (self.random.random() < misconduct_prob)
 
         self.model.spawn_model(
             origin_lab_id=self.lab_id,
@@ -225,12 +211,12 @@ class Researcher(mesa.Agent):
             researcher_skills=self.domain_skills,
             author_agent_id=self.unique_id,
             breakthrough=is_breakthrough,
+            misconduct=is_misconduct,
+            author_reputation=self.reputation,
         )
         self.current_domain = domain
 
         if is_breakthrough:
-            # Salience shock: incumbent models in this domain fade as the
-            # community pivots toward the new paradigm.
             new_uid = self.model.scientific_models[-1].uid
             for m in self.model.scientific_models:
                 if m.domain == domain and m.uid != new_uid:
@@ -243,18 +229,14 @@ class Researcher(mesa.Agent):
         Attempt to disprove a published model.
 
         Triggered as a byproduct of failed moderate-to-high-proficiency
-        exploitation. On success, the target model loses truthfulness and
-        salience, and a cascade propagates partial damage to any models that
-        were built directly on the debunked model (parent_uid == target.uid).
-        This simulates paradigm disruption: when a foundational result is
-        overturned, derivative work is also undermined.
+        exploitation.  On success: target loses truthfulness and salience,
+        cascade propagates partial damage to derivative models, debunker
+        earns a publication, original author is penalised.
         """
         self.current_domain = target.domain
         proficiency  = self.domain_skills[target.domain]
-        # Debunk success depends on how wrong the model actually is
         success_prob = proficiency * (1.0 - target.actual_truthfulness)
         if self.random.random() < success_prob:
-            # Reward reflects actual quality exposed — discovering a real flaw
             reward = target.actual_truthfulness * target.salience
             self.reputation                 += reward
             self.publications               += 1
@@ -263,7 +245,6 @@ class Researcher(mesa.Agent):
             target.salience            = max(0.0,  target.salience - 0.15)
             self._assimilate(target, self.skill_gain_attempt * 0.5)
 
-            # penalise original author — they lose half of what the debunker gains
             if target.author_agent_id is not None:
                 author = next(
                     (a for a in self.model.agents
@@ -274,7 +255,6 @@ class Researcher(mesa.Agent):
                     author.reputation              = max(0.0, author.reputation - penalty)
                     author.reputation_lost_to_debunk += penalty
 
-            # cascade: derivative models lose partial truthfulness and salience
             for m in self.model.scientific_models:
                 if m.parent_uid == target.uid:
                     m.actual_truthfulness = max(0.01, m.actual_truthfulness * 0.88)
@@ -287,14 +267,6 @@ class Researcher(mesa.Agent):
         """
         Nudge skill vector toward model complexity — focused on the model's
         primary domain, with only weak spillover to secondary domains.
-
-        Domain focus weights:
-          primary domain (m.domain) → full rate
-          all other domains         → SECONDARY_LEARN_FACTOR × rate
-
-        This prevents the runaway convergence where working on any model
-        quietly raises every skill. Specialists keep their spike; generalists
-        broaden only through the models they actively choose to work on.
         Skills only move upward.
         """
         skill = np.array(self.domain_skills)
@@ -307,19 +279,9 @@ class Researcher(mesa.Agent):
         self.domain_skills = np.clip(skill + gain, 0.01, 0.95).tolist()
 
     def _profile_alignment(self, m: ScientificModel) -> float:
-        """
-        Pure profile alignment: max(0, COR(skill_vector, complexity_vector)).
-        Used to scale learning rates — mismatched profiles learn slower.
-        Floor at 0.2 so learning never fully stalls.
-        Reuses _pearson_cor to avoid a second np.corrcoef call.
-        """
         return max(max(0.0, self._pearson_cor(m)), 0.2)
 
     def _train(self, m: ScientificModel):
-        """
-        Spend this step assimilating toward the model's full complexity profile.
-        Rate is scaled by profile alignment — mismatched profiles train slower.
-        """
         effective_rate = self.skill_gain_train * self._profile_alignment(m)
         self._assimilate(m, effective_rate)
         self.training_steps += 1
@@ -328,8 +290,9 @@ class Researcher(mesa.Agent):
     def _attempt(self, target: ScientificModel):
         """
         Try to implement a model.
-        Success: publish, cite, assimilate fully, possibly spawn a follow-up.
-        Failure: partial assimilation scaled by profile alignment.
+        Success: publish, cite, assimilate, record lab domain success,
+                 possibly spawn a follow-up.
+        Failure: partial assimilation, expert truth correction, possible debunk.
         """
         self.current_domain = target.domain
         self.model.replication_attempts += 1
@@ -337,13 +300,13 @@ class Researcher(mesa.Agent):
         if self.random.random() < self.success_probability(target):
             self.publications += 1
             self.domain_pubs[target.domain] += 1
-            # Reputation reflects reported quality — what the community values
             self.reputation += target.reported_truthfulness * target.salience
             target.cite()
             self._assimilate(target, self.skill_gain_attempt)
 
-            # opportunistic follow-up spawn on success — probability decreases
-            # as the domain fills up (log dampening). Uses cache — no list scan.
+            # Social learning: notify world that this lab succeeded in this domain
+            self.model.record_domain_success(self.lab_id, target.domain)
+
             n_domain   = self.model._cached_domain_counts.get(target.domain, 0)
             spawn_prob = 0.15 / (1.0 + np.log1p(n_domain))
             if self.random.random() < spawn_prob:
@@ -354,35 +317,23 @@ class Researcher(mesa.Agent):
                     initial_salience=0.7,
                     parent_uid=target.uid,
                     author_agent_id=self.unique_id,
+                    author_reputation=self.reputation,
                 )
                 self._record_spawn(target.domain, count_as_pub=False)
         else:
             self.model.replication_failures += 1
             self.model.domain_replication_failures[target.domain] += 1
-            # failed attempt — partial assimilation, scaled by how foreign the work is
             effective_rate = self.skill_gain_attempt * 0.3 * self._profile_alignment(target)
             self._assimilate(target, effective_rate)
 
             proficiency = self.domain_skills[target.domain]
 
-            # Expert truth correction: sufficiently skilled researchers who fail
-            # replication have enough domain knowledge to recognise that the
-            # failure reflects the model's flaw, not their own incompetence.
-            # Each expert failure erodes actual_truthfulness by a small amount
-            # proportional to expertise and the publication-bias inflation gap.
-            # This creates a slow, continuous truth-revelation process distinct
-            # from the large discrete correction of a formal debunk.
-            #
-            # The correction is larger when the gap between reported and actual
-            # is wider — highly inflated models are exposed faster.
             if proficiency > 0.50:
                 gap_inflation = target.reported_truthfulness - target.actual_truthfulness
                 correction    = proficiency * 0.015 * (1.0 + gap_inflation)
                 target.actual_truthfulness = max(0.01,
                                                  target.actual_truthfulness - correction)
 
-            # Discrete debunk: high-proficiency researchers may mount a formal
-            # challenge (larger, rarer correction than the continuous erosion above)
             if proficiency > 0.35 and self.random.random() < proficiency * 0.40:
                 self._debunk(target)
 
@@ -392,13 +343,17 @@ class Researcher(mesa.Agent):
         """
         Assemble top candidates by expected value, then choose probabilistically.
 
-          weight(model)   = (match + salience + truthfulness) × (skill / mean_skill)
-          weight(explore) = 1.5 × skill² / mean_skill
+        Career stage extension (new in v2):
+          Young researchers (low career_age) receive a bonus weight on the
+          explore option that decays linearly to zero at career_age = 150.
+          This reflects empirical career-trajectory data showing early-career
+          researchers take larger exploratory risks (Petersen et al. 2012).
 
-        The skill-relative bias (skill / mean_skill) is a parameter-free home-domain
-        pull derived directly from the skill vector. Specialists (~2× on their peak)
-        are pulled strongly toward familiar work; generalists (~1× everywhere) have
-        no directional bias.
+          weight(explore) = 1.5 × (1 + stage_boost) × skill² / mean_skill
+          stage_boost = max(0, 1 − career_age / 150)
+
+        Skill-relative bias (unchanged from v1):
+          weight(model) = (match + salience + truthfulness) × (skill / mean_skill)^0.5
         """
         scored = []
         for m in exploit:
@@ -409,13 +364,16 @@ class Researcher(mesa.Agent):
         top = sorted(scored, key=lambda x: x[2], reverse=True)[:2]
         top.append(('explore', best_domain, self._explore_value(best_domain)))
 
+        # Career stage: fade explore bonus from 1.0 (at birth) to 0.0 (step 150+)
+        stage_boost = max(0.0, 1.0 - self.career_age / 150.0)
+
         mean_sk = float(np.mean(self.domain_skills)) + 1e-8
         weights = []
         for action, target, _ in top:
             domain     = target if action == 'explore' else target.domain
             skill_bias = (self.domain_skills[domain] / mean_sk) ** 0.5
             if action == 'explore':
-                w = 1.5 * self.domain_skills[target] * skill_bias
+                w = 1.5 * (1.0 + stage_boost) * self.domain_skills[target] * skill_bias
             else:
                 w = (self._similarity(target)
                      + target.salience
@@ -433,6 +391,8 @@ class Researcher(mesa.Agent):
         _sa = np.array(self.domain_skills, dtype=float)
         self._sc_cache  = _sa - _sa.mean()
         self._ssq_cache = float(np.dot(self._sc_cache, self._sc_cache))
+
+        self.career_age += 1
 
         if self.current_target is not None:
             self.current_domain  = self.current_target.domain
@@ -457,8 +417,7 @@ class Researcher(mesa.Agent):
             self.explore_steps += 1
         elif action == 'invest':
             self._train(target)
-            # training_steps already incremented inside _train
-        else:  # exploit — start multi-step commitment
+        else:
             self.current_target = target
             self.current_domain = target.domain
             self.work_progress  = 1
@@ -468,17 +427,15 @@ class Researcher(mesa.Agent):
                 self.current_target = None
                 self.work_progress  = 0
 
-        # Passive reputation decay — old contributions count for less over time
+        # Passive reputation decay
         self.reputation = max(0.0, self.reputation * 0.998)
 
-        # Fingerprint drift — non-peak skills are attracted toward the lab baseline.
-        # Skills above it decay down (0.4%/step); skills below it are gently pulled up
-        # (0.2%/step). Peak domain is exempt so specialists can grow their spike freely.
+        # Fingerprint drift
         fp      = np.array(self.lab_fingerprint)
         skills  = np.array(self.domain_skills)
         peak    = int(np.argmax(fp))
-        excess  = np.maximum(0.0, skills - fp)   # above baseline → decay
-        deficit = np.maximum(0.0, fp - skills)   # below baseline → pull up
+        excess  = np.maximum(0.0, skills - fp)
+        deficit = np.maximum(0.0, fp - skills)
         excess[peak]  = 0.0
         deficit[peak] = 0.0
         self.domain_skills = np.clip(

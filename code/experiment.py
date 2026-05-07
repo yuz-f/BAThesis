@@ -1,11 +1,17 @@
 """
 30-seed confirmatory experiment.
 
-MODEL SPECIFICATION — 2026-05-07  (v3: epistemic landscape)
-  Scenarios    : SPEC (peak_skill_mean=0.55, peak_skill_std=0.07,
-                        other_skill_mean=0.25, other_skill_std=0.06)
-                 GEN  (peak_skill_mean=0.55, peak_skill_std=0.08,
-                        other_skill_mean=0.33, other_skill_std=0.08)
+MODEL SPECIFICATION — 2026-05-07  (v3: epistemic landscape, +UNIFORM control)
+  Scenarios    : SPEC    (peak_skill_mean=0.55, peak_skill_std=0.07,
+                          other_skill_mean=0.25, other_skill_std=0.06)
+                 GEN     (peak_skill_mean=0.55, peak_skill_std=0.08,
+                          other_skill_mean=0.33, other_skill_std=0.08)
+                 UNIFORM (peak_skill_mean=0.40, peak_skill_std=0.02,
+                          other_skill_mean=0.40, other_skill_std=0.02) — control:
+                          all researchers have near-identical flat profiles,
+                          no preferred domain. Tests whether H1/H2 effects
+                          require skill heterogeneity vs. follow from any
+                          non-uniform skill distribution.
   Shared params: selection_interval=40, n_labs=10, researchers_per_lab=5,
                  n_domains=10, train_threshold=0.30, skill_gain_attempt=0.06,
                  skill_gain_train=0.08, cull_fraction=0.25, mutation_std=0.04,
@@ -60,6 +66,12 @@ GEN = dict(
     other_skill_mean=0.33, other_skill_std=0.08,
     selection_interval=40,
 )
+UNIFORM = dict(
+    peak_skill_mean=0.40, peak_skill_std=0.02,
+    other_skill_mean=0.40, other_skill_std=0.02,
+    selection_interval=40,
+)
+SCENARIOS = {"SPEC": SPEC, "GEN": GEN, "UNIFORM": UNIFORM}
 
 SHARED = dict(
     train_threshold=0.30,
@@ -81,7 +93,7 @@ def _worker(task: tuple) -> dict:
     from world import ScienceWorld
     from collections import Counter
 
-    scenario = SPEC if label == "SPEC" else GEN
+    scenario = SCENARIOS[label]
     w = ScienceWorld(rng=seed, **scenario, **SHARED)
 
     action_counts = {"exploit": 0, "explore": 0, "train": 0}
@@ -181,11 +193,12 @@ def _report(label: str, metric: str, vals: list[float]):
 
 
 if __name__ == "__main__":
+    LABELS = ("SPEC", "GEN", "UNIFORM")
     tasks = [(label, seed)
-             for label in ("SPEC", "GEN")
+             for label in LABELS
              for seed in SEEDS]
 
-    print(f"Running {len(tasks)} simulations ({len(SEEDS)} seeds × 2 scenarios × {STEPS} steps)…")
+    print(f"Running {len(tasks)} simulations ({len(SEEDS)} seeds × {len(LABELS)} scenarios × {STEPS} steps)…")
     with Pool() as pool:
         results = pool.map(_worker, tasks)
 
@@ -201,7 +214,7 @@ if __name__ == "__main__":
     print(f"\nRaw results saved → {csv_path}\n")
 
     # split by scenario
-    by_label: dict[str, list[dict]] = {"SPEC": [], "GEN": []}
+    by_label: dict[str, list[dict]] = {lbl: [] for lbl in LABELS}
     for r in results:
         by_label[r["label"]].append(r)
 
@@ -224,15 +237,12 @@ if __name__ == "__main__":
         ("train_frac",           "Train fraction"),
     ]
     for key, name in metrics:
-        for lbl in ("SPEC", "GEN"):
+        for lbl in LABELS:
             vals = [r[key] for r in by_label[lbl]]
             _report(lbl, name, vals)
         print()
 
     # ── inferential statistics ────────────────────────────────────────────────
-    print("=" * 70)
-    print("INFERENTIAL STATISTICS  (SPEC vs GEN)")
-    print("=" * 70)
     inf_metrics = [
         ("fail_rate",          "H1: Replication fail rate"),
         ("gini",               "H2: Gini (pub domain conc.)"),
@@ -241,15 +251,25 @@ if __name__ == "__main__":
         ("mean_actual",        "Exploratory: Mean actual truthfulness"),
         ("bias_gap",           "Exploratory: Bias gap"),
     ]
-    for key, name in inf_metrics:
-        spec_vals = [r[key] for r in by_label["SPEC"]]
-        gen_vals  = [r[key] for r in by_label["GEN"]]
-        u_stat, p_val = stats.mannwhitneyu(spec_vals, gen_vals, alternative="two-sided")
-        d = _cohen_d(spec_vals, gen_vals)
-        direction = "SPEC > GEN" if np.mean(spec_vals) > np.mean(gen_vals) else "GEN > SPEC"
-        sig = "***" if p_val < 0.001 else ("**" if p_val < 0.01 else ("*" if p_val < 0.05 else "n.s."))
-        print(f"  {name}")
-        print(f"    SPEC={np.mean(spec_vals):.4f}  GEN={np.mean(gen_vals):.4f}  "
-              f"({direction})")
-        print(f"    Mann-Whitney U={u_stat:.1f}  p={p_val:.4f} {sig}  Cohen's d={d:.3f}")
-        print()
+
+    def _print_pair(a_lbl: str, b_lbl: str):
+        for key, name in inf_metrics:
+            a_vals = [r[key] for r in by_label[a_lbl]]
+            b_vals = [r[key] for r in by_label[b_lbl]]
+            u_stat, p_val = stats.mannwhitneyu(a_vals, b_vals, alternative="two-sided")
+            d = _cohen_d(a_vals, b_vals)
+            direction = f"{a_lbl} > {b_lbl}" if np.mean(a_vals) > np.mean(b_vals) else f"{b_lbl} > {a_lbl}"
+            sig = "***" if p_val < 0.001 else ("**" if p_val < 0.01 else ("*" if p_val < 0.05 else "n.s."))
+            print(f"  {name}")
+            print(f"    {a_lbl}={np.mean(a_vals):.4f}  {b_lbl}={np.mean(b_vals):.4f}  ({direction})")
+            print(f"    Mann-Whitney U={u_stat:.1f}  p={p_val:.4f} {sig}  Cohen's d={d:.3f}")
+            print()
+
+    print("=" * 70); print("INFERENTIAL STATISTICS  (SPEC vs GEN)"); print("=" * 70)
+    _print_pair("SPEC", "GEN")
+
+    print("=" * 70); print("CONTROL CHECK  (SPEC vs UNIFORM)  — H1/H2 should be amplified"); print("=" * 70)
+    _print_pair("SPEC", "UNIFORM")
+
+    print("=" * 70); print("CONTROL CHECK  (GEN vs UNIFORM)  — H1/H2 should attenuate or vanish"); print("=" * 70)
+    _print_pair("GEN", "UNIFORM")

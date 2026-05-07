@@ -10,25 +10,36 @@ class Researcher(mesa.Agent):
     """
     An individual researcher agent with a personal skill vector.
 
-    Starts with skills drawn from their home lab's fingerprint, then learns
-    independently through assimilation: working on models with different
-    complexity profiles gradually shifts the researcher's skills toward
-    those profiles — without forgetting what they already know.
+    Epistemic landscape integration (v3)
+    ----------------------------------------
+    Each researcher tracks a 2D theory-space position per domain:
+      self.domain_positions[d]  →  np.ndarray([x, y]) ∈ [0,1]²
 
-    Each step the researcher makes a probabilistic three-way decision:
-      - Exploit: commit to implementing an existing model (multi-step)
-      - Invest:  train toward a model they cannot yet implement
-      - Explore: publish a new model in an underexplored domain
+    This position represents where the researcher is currently "working"
+    on the domain's epistemic landscape.  It evolves as follows:
 
-    Realism additions vs. v1:
-      - Career stages: young researchers explore more; seniors exploit more
-      - Social learning: lab-mates' recent domain successes boost action weights
-      - Matthew effect: high-reputation researchers are drawn toward
-        high-salience (prominent) models
-      - Misconduct: under competitive pressure, researchers inflate reported
-        quality beyond the standard publication-bias draw
-      - Competitive pressure → publication bias: researchers below the
-        median reputation inflate bias at spawn time (via world._median_rep)
+      - On successful exploitation: position assimilates 10 % toward the
+        target model's landscape position (slow convergence toward where
+        established work lives).
+      - On exploration: the new model is placed near the researcher's
+        current position (+noise that shrinks with experience), so experts
+        cluster tightly while novices scatter broadly.
+      - Follow-up models (after a successful exploit): placed one gradient-
+        descent step closer to the nearest valley, operationalising the
+        tendency of mature research programmes to converge on stable anchors.
+
+    Stability directly modifies the three key action outcomes:
+      1. success_probability: valley models replicate more easily
+         (× 0.75 + 0.25 × stability)
+      2. debunk success: peak models are more vulnerable
+         (× 1 + 0.5 × instability)
+      3. exploit attractiveness: stable models look better to work on
+         (stability_attract = 1 + 0.30 × stability)
+
+    Other additions (v2, unchanged)
+    ----------------------------------------
+    - Career stages, social learning, Matthew effect, competitive pressure
+      bias, misconduct pathway — see docstrings in each method.
     """
 
     SECONDARY_LEARN_FACTOR = 0.12
@@ -61,14 +72,23 @@ class Researcher(mesa.Agent):
         self.domain_pubs: defaultdict[int, int] = defaultdict(int)
         self.reputation_at_last_cull = 0.0
 
-        # career stage — incremented every step; drives explore-bias decay
+        # career stage
         self.career_age: int = 0
+
+        # Theory-space positions on each domain's epistemic landscape.
+        # Initialised uniformly — researchers start at unknown positions
+        # and converge toward valleys as they accumulate experience.
+        n_domains = len(domain_skills)
+        self.domain_positions: dict[int, np.ndarray] = {
+            d: self.model.rng.uniform(0.05, 0.95, 2)
+            for d in range(n_domains)
+        }
 
         # work-in-progress state
         self.current_target: ScientificModel | None = None
         self.work_progress:  int = 0
 
-        # per-step Pearson cache — refreshed at start of step()
+        # per-step Pearson cache
         _sa = np.array(domain_skills, dtype=float)
         self._sc_cache   = _sa - _sa.mean()
         self._ssq_cache  = float(np.dot(self._sc_cache, self._sc_cache))
@@ -86,13 +106,6 @@ class Researcher(mesa.Agent):
     # --- core mechanics ---
 
     def _sigmoid_gain(self, current: float, base_rate: float) -> float:
-        """
-        S-curve learning: gain = base_rate × current × (1 - current) × 4
-
-        - Near 0.0 : very slow  (no foundation)
-        - Near 0.5 : fastest    (peak = base_rate)
-        - Near 1.0 : very slow  (diminishing returns)
-        """
         return base_rate * current * (1.0 - current) * 4.0
 
     def _work_required(self, m: ScientificModel) -> int:
@@ -110,11 +123,24 @@ class Researcher(mesa.Agent):
         return max(1e-6, self.domain_skills[m.domain] * cor)
 
     def success_probability(self, m: ScientificModel) -> float:
+        """
+        P(success) = (sim + avg × (1−sim)) × truth_ratio × stability_factor
+
+        Landscape extension:
+          stability_factor = 0.75 + 0.25 × m.landscape_stability
+          Valley models (stability→1): factor = 1.00 — no penalty.
+          Peak models   (stability→0): factor = 0.75 — 25 % harder to replicate.
+
+        The mechanism operationalises the intuition that a model in unstable
+        theory-space is harder to reproduce: the conditions required to get it
+        to work are narrow, sensitive, and poorly understood.
+        """
         sim = self._similarity(m)
         avg = float(np.mean(self.domain_skills))
         base = sim + avg * (1.0 - sim)
-        truth_ratio = m.actual_truthfulness / max(m.reported_truthfulness, 1e-8)
-        return float(np.clip(base * truth_ratio, 0.0, 1.0))
+        truth_ratio      = m.actual_truthfulness / max(m.reported_truthfulness, 1e-8)
+        stability_factor = 0.75 + 0.25 * m.landscape_stability
+        return float(np.clip(base * truth_ratio * stability_factor, 0.0, 1.0))
 
     def _split_candidates(self):
         exploit, invest = [], []
@@ -132,14 +158,14 @@ class Researcher(mesa.Agent):
         """
         Expected gain per step from committing to this model.
 
-        Three realism extensions over v1:
-          - Social learning: domains where labmates recently succeeded get a
-            bonus (Crane 1972 — invisible colleges pull focus)
-          - Matthew effect: high-reputation researchers are amplified toward
-            high-salience models (Merton 1968)
-          - Both factors are bounded (tanh) so they nudge rather than dominate
+        Three multipliers beyond the base value:
+          1. Social learning bonus  (v2) — labmate success signal
+          2. Matthew effect         (v2) — rep amplifies salience visibility
+          3. Stability attraction   (v3) — valley models are preferred
+             stability_attract = 1 + 0.30 × landscape_stability
+             Valley (1): × 1.30   Peak (0): × 1.00
         """
-        # Social learning: labmates' recent success in this domain
+        # Social learning
         social_signal = (
             self.model.lab_domain_successes
             .get(self.lab_id, {})
@@ -147,13 +173,16 @@ class Researcher(mesa.Agent):
         )
         social_bonus = 1.0 + self.model.social_learn_strength * np.tanh(social_signal)
 
-        # Matthew effect: prominent models are even more attractive for elite researchers
-        matthew_factor = 1.0 + 0.30 * np.tanh(self.reputation * 0.05)
+        # Matthew effect
+        matthew_factor     = 1.0 + 0.30 * np.tanh(self.reputation * 0.05)
         effective_salience = m.salience * matthew_factor
+
+        # Stability attraction: agents prefer work in stable theory-space
+        stability_attract = 1.0 + 0.30 * m.landscape_stability
 
         base = (self.success_probability(m) * m.reported_truthfulness * effective_salience
                 / (self._work_required(m) * (1.0 + self.domain_pubs[m.domain])))
-        return base * social_bonus
+        return base * social_bonus * stability_attract
 
     def _invest_value(self, m: ScientificModel) -> float:
         current        = self.domain_skills[m.domain]
@@ -179,29 +208,39 @@ class Researcher(mesa.Agent):
 
     def _explore(self, domain: int):
         """
-        Publish a new Scientific Model in an underexplored domain.
+        Publish a new Scientific Model.
 
-        Misconduct pathway (new in v2):
-          Under competitive pressure — when the researcher's reputation falls
-          below the field median — there is an elevated probability of
-          strategic quality inflation (reporting higher than actual).
-          The base misconduct probability (world.misconduct_base_rate) scales
-          up with pressure so that low-reputation researchers inflate more
-          (Fang et al. 2012: misconduct accounts for 67% of retractions).
+        Landscape positioning (v3):
+          The model is placed near the researcher's current theory-space
+          position in this domain.  The placement noise shrinks with experience:
+            noise_scale = max(0.04, 0.20 − 0.01 × own_pubs_in_domain)
+          A researcher publishing their 16th paper in a domain scatters ±0.04
+          around their current position; a newcomer scatters ±0.20.  This means
+          experts converge on a theory-space cluster (which may lie in a valley
+          if their programme has matured) while novices enter from random angles.
 
-        Breakthrough mechanic (unchanged from v1):
-          Skill²-scaled probability of a paradigm-shifting publication that
-          displaces incumbent models via salience shock.
+        Misconduct and breakthrough mechanics unchanged from v2.
         """
         skill           = self.domain_skills[domain]
         is_breakthrough = self.random.random() < skill ** 2 * 0.10
 
+        # --- landscape position for the new model ---
+        current_pos = self.domain_positions.get(
+            domain,
+            self.model.rng.uniform(0.05, 0.95, 2)
+        )
+        # novices scatter widely; experts place tightly around current position
+        noise_scale = max(0.04, 0.20 - 0.01 * self.domain_pubs[domain])
+        raw_pos = current_pos + self.model.rng.normal(0.0, noise_scale, 2)
+        position = (
+            float(np.clip(raw_pos[0], 0.01, 0.99)),
+            float(np.clip(raw_pos[1], 0.01, 0.99)),
+        )
+
         # Competitive pressure → misconduct probability
         median_rep = self.model._median_rep
-        if median_rep > 0:
-            pressure = float(np.clip(1.0 - self.reputation / median_rep, 0.0, 1.0))
-        else:
-            pressure = 0.0
+        pressure   = float(np.clip(1.0 - self.reputation / median_rep, 0.0, 1.0)) \
+                     if median_rep > 0 else 0.0
         misconduct_prob = self.model.misconduct_base_rate * (1.0 + pressure * 2.0)
         is_misconduct   = (not is_breakthrough) and (self.random.random() < misconduct_prob)
 
@@ -213,6 +252,7 @@ class Researcher(mesa.Agent):
             breakthrough=is_breakthrough,
             misconduct=is_misconduct,
             author_reputation=self.reputation,
+            position=position,
         )
         self.current_domain = domain
 
@@ -228,14 +268,19 @@ class Researcher(mesa.Agent):
         """
         Attempt to disprove a published model.
 
-        Triggered as a byproduct of failed moderate-to-high-proficiency
-        exploitation.  On success: target loses truthfulness and salience,
-        cascade propagates partial damage to derivative models, debunker
-        earns a publication, original author is penalised.
+        Landscape extension (v3):
+          Peak models are more vulnerable to debunking — they occupy unstable
+          theory-space where the conditions for the result are narrow and poorly
+          characterised.
+
+            instability_boost = 1.0 + 0.5 × (1 − landscape_stability)
+            Valley (stability=1): boost = 1.00 — standard difficulty
+            Peak   (stability=0): boost = 1.50 — 50 % more debunkable
         """
         self.current_domain = target.domain
-        proficiency  = self.domain_skills[target.domain]
-        success_prob = proficiency * (1.0 - target.actual_truthfulness)
+        proficiency       = self.domain_skills[target.domain]
+        instability_boost = 1.0 + 0.5 * (1.0 - target.landscape_stability)
+        success_prob      = proficiency * (1.0 - target.actual_truthfulness) * instability_boost
         if self.random.random() < success_prob:
             reward = target.actual_truthfulness * target.salience
             self.reputation                 += reward
@@ -264,11 +309,6 @@ class Researcher(mesa.Agent):
         self.debunk_steps += 1
 
     def _assimilate(self, m: ScientificModel, rate: float):
-        """
-        Nudge skill vector toward model complexity — focused on the model's
-        primary domain, with only weak spillover to secondary domains.
-        Skills only move upward.
-        """
         skill = np.array(self.domain_skills)
         comp  = np.array(m.complexity)
         gap   = comp - skill
@@ -290,9 +330,17 @@ class Researcher(mesa.Agent):
     def _attempt(self, target: ScientificModel):
         """
         Try to implement a model.
-        Success: publish, cite, assimilate, record lab domain success,
-                 possibly spawn a follow-up.
-        Failure: partial assimilation, expert truth correction, possible debunk.
+
+        Landscape extensions (v3):
+          On success:
+            - Researcher's theory position in the domain assimilates 10 %
+              toward the model's landscape position (slow convergence).
+            - Follow-up model (if spawned) is placed one gradient-descent step
+              closer to the nearest valley: research programmes mature toward
+              stable anchors.
+          On failure:
+            - No position update (failed replication gives no new theoretical
+              footing).
         """
         self.current_domain = target.domain
         self.model.replication_attempts += 1
@@ -304,12 +352,23 @@ class Researcher(mesa.Agent):
             target.cite()
             self._assimilate(target, self.skill_gain_attempt)
 
-            # Social learning: notify world that this lab succeeded in this domain
+            # Social learning signal
             self.model.record_domain_success(self.lab_id, target.domain)
 
+            # Theory-position assimilation toward model's landscape position
+            current_pos = self.domain_positions.get(
+                target.domain, np.array([0.5, 0.5])
+            )
+            self.domain_positions[target.domain] = (
+                current_pos + 0.10 * (np.array(target.position) - current_pos)
+            )
+
+            # Follow-up spawn — gradient-descent position toward valley
             n_domain   = self.model._cached_domain_counts.get(target.domain, 0)
             spawn_prob = 0.15 / (1.0 + np.log1p(n_domain))
             if self.random.random() < spawn_prob:
+                landscape  = self.model.landscapes[target.domain]
+                next_pos   = landscape.step_toward_valley(*target.position, step_size=0.05)
                 self.model.spawn_model(
                     origin_lab_id=self.lab_id,
                     domain=target.domain,
@@ -318,6 +377,7 @@ class Researcher(mesa.Agent):
                     parent_uid=target.uid,
                     author_agent_id=self.unique_id,
                     author_reputation=self.reputation,
+                    position=next_pos,
                 )
                 self._record_spawn(target.domain, count_as_pub=False)
         else:
@@ -341,19 +401,8 @@ class Researcher(mesa.Agent):
 
     def _choose_action(self, exploit: list, invest: list, best_domain: int):
         """
-        Assemble top candidates by expected value, then choose probabilistically.
-
-        Career stage extension (new in v2):
-          Young researchers (low career_age) receive a bonus weight on the
-          explore option that decays linearly to zero at career_age = 150.
-          This reflects empirical career-trajectory data showing early-career
-          researchers take larger exploratory risks (Petersen et al. 2012).
-
-          weight(explore) = 1.5 × (1 + stage_boost) × skill² / mean_skill
-          stage_boost = max(0, 1 − career_age / 150)
-
-        Skill-relative bias (unchanged from v1):
-          weight(model) = (match + salience + truthfulness) × (skill / mean_skill)^0.5
+        Career stage boost on explore weight (v2, unchanged).
+        Stability attraction is already baked into _exploit_value (v3).
         """
         scored = []
         for m in exploit:
@@ -364,7 +413,6 @@ class Researcher(mesa.Agent):
         top = sorted(scored, key=lambda x: x[2], reverse=True)[:2]
         top.append(('explore', best_domain, self._explore_value(best_domain)))
 
-        # Career stage: fade explore bonus from 1.0 (at birth) to 0.0 (step 150+)
         stage_boost = max(0.0, 1.0 - self.career_age / 150.0)
 
         mean_sk = float(np.mean(self.domain_skills)) + 1e-8
@@ -387,7 +435,6 @@ class Researcher(mesa.Agent):
     # --- step ---
 
     def step(self):
-        # refresh Pearson cache — skills may have changed since last step
         _sa = np.array(self.domain_skills, dtype=float)
         self._sc_cache  = _sa - _sa.mean()
         self._ssq_cache = float(np.dot(self._sc_cache, self._sc_cache))
@@ -427,10 +474,8 @@ class Researcher(mesa.Agent):
                 self.current_target = None
                 self.work_progress  = 0
 
-        # Passive reputation decay
         self.reputation = max(0.0, self.reputation * 0.998)
 
-        # Fingerprint drift
         fp      = np.array(self.lab_fingerprint)
         skills  = np.array(self.domain_skills)
         peak    = int(np.argmax(fp))

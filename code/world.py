@@ -5,6 +5,7 @@ import mesa
 from scientific_model import ScientificModel
 from lab import Lab
 from researcher import Researcher
+from landscape import EpistemicLandscape
 
 
 class ScienceWorld(mesa.Model):
@@ -115,6 +116,13 @@ class ScienceWorld(mesa.Model):
 
         self.domain_truthfulness_caps  = [float(self.rng.uniform(0.35, 0.60)) for _ in range(n_domains)]
         self.domain_difficulty_floors  = [float(self.rng.uniform(0.05, 0.40)) for _ in range(n_domains)]
+
+        # One epistemic landscape per domain — 3 valleys, 4 peaks each.
+        # Seeded from the model rng so runs are fully reproducible.
+        self.landscapes: list[EpistemicLandscape] = [
+            EpistemicLandscape(n_valleys=3, n_peaks=4, rng=self.rng)
+            for _ in range(n_domains)
+        ]
 
         self.datacollector = mesa.DataCollector(
             model_reporters={
@@ -334,15 +342,23 @@ class ScienceWorld(mesa.Model):
                     author_agent_id:    int | None = None,
                     breakthrough:       bool       = False,
                     misconduct:         bool       = False,
-                    author_reputation:  float | None = None):
+                    author_reputation:  float | None = None,
+                    position:           tuple[float, float] | None = None):
         """
         Publish a new ScientificModel.
 
-        Bias inflation logic (v2):
-          1. breakthrough=True  → lower bias (more scrutiny before publication)
-          2. misconduct=True    → higher bias draw (strategic inflation)
-          3. otherwise          → standard draw, shifted up by competitive
-                                  pressure when author is below field median
+        Bias inflation logic (v3 — landscape-aware):
+          1. breakthrough=True  → lower base bias; landscape-peak boost still applies
+          2. misconduct=True    → high base bias; landscape-peak boost still applies
+          3. otherwise          → standard draw shifted by competitive pressure
+                                  AND landscape position
+
+        Landscape integration:
+          - position defaults to (0.5, 0.5) if not supplied (seed models)
+          - landscape stability is computed from the domain's EpistemicLandscape
+          - peak positions add extra bias (reported-truth amplification)
+          - the model's stability score is stored for use in replication /
+            debunking / salience calculations downstream
         """
         cap       = self.domain_truthfulness_caps[domain]
         max_truth = max(
@@ -351,29 +367,39 @@ class ScienceWorld(mesa.Model):
         )
         gap = cap - max_truth
 
+        # --- resolve landscape position and stability ---
+        if position is None:
+            pos = (float(self.rng.uniform(0.05, 0.95)),
+                   float(self.rng.uniform(0.05, 0.95)))
+        else:
+            pos = position
+        landscape         = self.landscapes[domain]
+        land_stability    = landscape.stability(*pos)
+        landscape_pb      = landscape.position_bias(*pos)   # extra bias from peak position
+
+        # --- truthfulness gain ---
         if breakthrough:
-            alpha          = 12.0 + (max_truth * 10)
-            gain           = float(self.rng.beta(alpha, 2)) * gap * 0.85
-            bias_inflation = float(np.clip(self.rng.normal(0.05, 0.03), 0.0, 0.15))
+            alpha            = 12.0 + (max_truth * 10)
+            gain             = float(self.rng.beta(alpha, 2)) * gap * 0.85
+            base_bias        = float(np.clip(self.rng.normal(0.05, 0.03), 0.0, 0.15))
+            bias_inflation   = float(np.clip(base_bias + landscape_pb, 0.0, 0.45))
             initial_salience = 0.90
         elif misconduct:
-            # Strategic inflation: mean shifted to 0.22, wider variance
-            # Models here are more fragile and more likely to be debunked
             alpha          = 2.0 + (max_truth * 10)
             gain           = float(self.rng.beta(alpha, 5)) * gap * 0.5
-            bias_inflation = float(np.clip(self.rng.normal(0.22, 0.06), 0.05, 0.40))
+            base_bias      = float(np.clip(self.rng.normal(0.22, 0.06), 0.05, 0.40))
+            bias_inflation = float(np.clip(base_bias + landscape_pb, 0.0, 0.45))
         else:
             alpha = 2.0 + (max_truth * 10)
             gain  = float(self.rng.beta(alpha, 5)) * gap * 0.5
-            # Competitive pressure: authors below field median inflate more
             if author_reputation is not None and self._median_rep > 0:
                 pressure = float(np.clip(
                     1.0 - author_reputation / self._median_rep, 0.0, 1.0
                 ))
             else:
                 pressure = 0.0
-            bias_mean      = 0.10 + pressure * 0.08
-            bias_inflation = float(np.clip(self.rng.normal(bias_mean, 0.05), 0.0, 0.35))
+            bias_mean      = 0.10 + pressure * 0.08 + landscape_pb
+            bias_inflation = float(np.clip(self.rng.normal(bias_mean, 0.05), 0.0, 0.45))
 
         truthfulness = float(np.clip(max_truth + gain, 0.01, cap - 1e-4))
 
@@ -395,6 +421,8 @@ class ScienceWorld(mesa.Model):
             parent_uid=parent_uid,
             bias_inflation=bias_inflation,
             author_agent_id=author_agent_id,
+            position=pos,
+            landscape_stability=land_stability,
         )
         m.salience = initial_salience
         self.scientific_models.append(m)

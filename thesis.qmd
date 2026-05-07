@@ -452,6 +452,25 @@ Asterisks above the bracket indicate $p < .001$ (Mann-Whitney $U$, two-sided).}
 \end{figure}
 ```
 
+## Temporal Dynamics
+
+The end-state metrics reported above summarise 300-step trajectories. To show how the H1 and H2 differences emerge over time, Figure \ref{fig:temporal} plots both metrics across the full simulation horizon for all three scenarios, with mean trajectories and 95% confidence bands across 30 seeds.
+
+Both metrics differentiate the scenarios within the first 50–75 steps and remain stable for the remaining 225 steps. For H1, all three scenarios begin at high failure rates (≈ .68 at step 1) reflecting the small initial pool of replication attempts; failure rates then decrease as the literature accumulates and researchers find better-matched models. The Generalist trajectory descends fastest and stabilises lowest; Specialist and Uniform trajectories descend more slowly and stabilise above. For H2, the Gini coefficient starts high (≈ .20) reflecting the seed-only domain configuration in the early steps and then descends sharply as researchers begin publishing across all ten domains. By step 50 the three scenarios have separated into their final ordering — SPEC > GEN > UNIFORM — and remain within their respective bands for the rest of the simulation.
+
+```{=latex}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{meta/img/temporal_figure.pdf}
+\captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}
+\caption{\textit{Temporal trajectories of the confirmatory metrics over 300 steps.}
+Panel A: cumulative replication failure rate (H1). Panel B: Gini coefficient of per-domain publication counts (H2). Solid lines show mean trajectories across 30 seeds per scenario; shaded bands are 95\% confidence intervals. Both metrics differentiate the scenarios within the first 50–75 steps and remain in stable bands thereafter, ruling out the possibility that the end-state differences arise from late-simulation drift.}
+\label{fig:temporal}
+\end{figure}
+```
+
+The temporal stability of the differences is methodologically reassuring: the confirmatory results in Section [Confirmatory Analyses] do not depend on a particular endpoint choice. Reporting the same statistics at step 100, 200, or 300 would give qualitatively the same answer.
+
 ## Exploratory Analyses
 
 **H3: Mean researcher reputation.** Mean end-of-simulation reputation was 10.80 (95% CI [10.41, 11.20]) in the specialist scenario and 10.79 (95% CI [10.41, 11.18]) in the generalist scenario. The difference was not significant: *U* = 478.0, *p* = .684, *d* = 0.008. H3 is not supported.

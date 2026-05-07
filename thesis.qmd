@@ -219,6 +219,14 @@ A *Scientific Model* is a passive object representing a published scientific con
 
 **Salience dynamics.** A model's salience begins at 0.5 at publication and is governed by two opposing forces. Each time another researcher successfully uses the model, it gains 0.05 salience (a citation). Each time step, salience decays at a base rate of 0.025. Crucially, high-truthfulness models resist decay as long as they are actively cited: the effective decay rate is reduced in proportion to the model's truthfulness, weighted by a *recency factor* that equals one when the model was cited in the current step and falls linearly to zero after 20 steps without a citation. A model that stops being cited therefore loses its truthfulness shield within 20 steps and then decays at the full base rate, regardless of how accurate it is. This creates era dynamics: superseded models fade on a predictable timescale and are gradually replaced by newer work. In addition, when a domain reaches high saturation (≥ 70% of its cap), all models in that domain incur an extra salience penalty each step, discouraging further investment in crowded areas.
 
+### Epistemic Landscape
+
+Each research domain is assigned a two-dimensional *epistemic landscape* at initialisation, following the conceptual framework of @WeisbergMuldoon2009. The landscape is a Gaussian-mixture potential-energy surface over the unit square $[0,1]^2$, composed of *valleys* (Gaussian wells, three per domain) representing stable theoretical paradigms and *peaks* (Gaussian bumps, four per domain) representing unstable or intermediate theoretical positions. The height function $h(x, y) \in [0,1]$ encodes epistemic instability: $h \approx 0$ at a valley bottom corresponds to well-established, broadly understood theory — the analogue of Newtonian mechanics occupying a low valley, with general relativity a higher but still well-defined attractor; $h \approx 1$ at a peak top corresponds to contested territory whose conditions are narrow, poorly characterised, and prone to revision. Stability is $s = 1 - h$.
+
+Each Scientific Model carries a position on its domain's landscape, set at publication to the publishing researcher's current theory-space position in that domain. Researchers maintain a per-domain theory-space position that evolves through research activity: successful exploitation assimilates a researcher's position 10% toward the cited model's location, implementing slow convergence toward productive theory-space. During exploration, new models are placed near the researcher's current position with Gaussian noise whose standard deviation shrinks with experience — from $\sigma = 0.20$ for a researcher's first paper in a domain to $\sigma = 0.04$ after sixteen publications — so that novices enter from scattered positions while experts cluster in a tightening region. Follow-up models (derivative publications triggered by successful exploitation) are placed one gradient-descent step closer to the nearest valley, operationalising the tendency of mature research programmes to converge on stable theoretical anchors cumulatively.
+
+Landscape stability enters four downstream quantities. *Replication probability* (Equation 1) is scaled by a stability factor $(0.75 + 0.25\,s)$: valley models replicate more easily because their theoretical conditions are well-characterised and reproducible. *Debunking vulnerability* (Equation 5) is scaled by an instability boost $(1 + 0.5\,(1-s))$: peak models are more susceptible to successful challenge because the conditions under which they hold are narrow and poorly understood. *Salience decay* is slowed by up to 25% for valley models ($\text{effective\_decay} \times (1 - 0.25\,s)$), reflecting that well-established results remain salient without constant new citations. *Publication bias inflation* receives an additional term of up to 0.15 proportional to peak height, operationalising the tendency to over-report results from exciting but theoretically unstable territory.
+
 ### Core Mechanics: Exploit, Invest, Explore, and Debunk
 
 At each step, a researcher either continues an ongoing multi-step exploitation task or selects a new action. The four possible activities are described below.
@@ -234,19 +242,20 @@ $$
 where $\mathbf{s}_i$ is the researcher's skill vector and $\mathbf{c}_m$ is the model's complexity vector. The overall success probability is then
 
 $$
-P(\text{success}) = \Bigl(\text{sim}_{i,m} + \bar{s}_i\,(1 - \text{sim}_{i,m})\Bigr) \times \frac{\theta_{\text{actual}}}{\theta_{\text{reported}}}
+P(\text{success}) = \Bigl(\text{sim}_{i,m} + \bar{s}_i\,(1 - \text{sim}_{i,m})\Bigr) \times \frac{\theta_{\text{actual}}}{\theta_{\text{reported}}} \times \underbrace{(0.75 + 0.25\,s_m)}_{\text{stability factor}}
 \tag{1}
 $$
 
-where $\bar{s}_i$ is the researcher's mean skill across all domains and $\theta_{\text{actual}}/\theta_{\text{reported}}$ is the truth ratio. This ratio is the key mechanism through which publication bias enters replication dynamics: a model reported 20% above its actual quality is approximately 20% less likely to replicate successfully, regardless of researcher skill. Systematic inflation of reported effect sizes in published literature — particularly pronounced in psychology — is well-documented empirically [@Fanelli2010]. A researcher who is skilled in the right domain and whose broader expertise aligns with the model's demands is most likely to succeed. The mean-skill floor ensures that any researcher with genuine competence always has a non-negligible success probability. The implementation in `researcher.py` reads directly:
+where $\bar{s}_i$ is the researcher's mean skill across all domains, $\theta_{\text{actual}}/\theta_{\text{reported}}$ is the truth ratio, and $s_m$ is the model's landscape stability (see [Epistemic Landscape]). The truth ratio is the key mechanism through which publication bias enters replication dynamics: a model reported 20% above its actual quality is approximately 20% less likely to replicate successfully, regardless of researcher skill. Systematic inflation of reported effect sizes in published literature — particularly pronounced in psychology — is well-documented empirically [@Fanelli2010]. A researcher who is skilled in the right domain and whose broader expertise aligns with the model's demands is most likely to succeed. The mean-skill floor ensures that any researcher with genuine competence always has a non-negligible success probability. The implementation in `researcher.py` reads directly:
 
 ```python
 def success_probability(self, m):
     sim = self._similarity(m)           # proficiency × max(0, Cor(skills, complexity))
     avg = float(np.mean(self.domain_skills))
     base = sim + avg * (1.0 - sim)
-    truth_ratio = m.actual_truthfulness / max(m.reported_truthfulness, 1e-8)
-    return float(np.clip(base * truth_ratio, 0.0, 1.0))
+    truth_ratio      = m.actual_truthfulness / max(m.reported_truthfulness, 1e-8)
+    stability_factor = 0.75 + 0.25 * m.landscape_stability  # valley models replicate more easily
+    return float(np.clip(base * truth_ratio * stability_factor, 0.0, 1.0))
 ```
 
 On success, the researcher earns one publication, gains reputation proportional to the model's current *reported* truthfulness and salience (agents are rewarded based on what the community perceives, not the hidden actual quality), cites the model (raising its salience), and assimilates toward the model's complexity profile (see below). With a small probability that decreases as the domain fills up, the researcher also spawns a follow-up model, representing the opportunistic extension of successful work.
@@ -306,15 +315,16 @@ if is_breakthrough:                         # salience shock to incumbents
 **Debunk.** A researcher attempts to disprove an existing model. Debunking is not a freely chosen action; it is triggered as a byproduct of failed exploitation by a researcher with domain proficiency above 0.35. The probability of a successful debunk is
 
 $$
-P(\text{debunk success}) = \text{proficiency} \times (1 - \theta_{\text{actual}})
+P(\text{debunk success}) = \text{proficiency} \times (1 - \theta_{\text{actual}}) \times \underbrace{(1 + 0.5\,(1 - s_m))}_{\text{instability boost}}
 \tag{5}
 $$
 
-Experts are therefore most likely to expose weak models, and genuinely high-quality models are largely immune even when a very skilled researcher fails to replicate them. A successful debunk reduces the target model's truthfulness by 25% and its salience by 0.15, cascades partial damage to directly derivative models ($\theta_{\text{actual}} \times 0.88$ for children), and earns the researcher a publication and reputation proportional to the impact of the discredited model. The original author incurs a reputational penalty equal to half of the debunker's reward. The implementation (`researcher.py`, `_debunk`):
+Experts are therefore most likely to expose weak models, and genuinely high-quality models are largely immune even when a very skilled researcher fails to replicate them. Models positioned near landscape peaks are additionally vulnerable: the instability boost scales from 1.0 (valley) to 1.5 (full peak), reflecting that results from theoretically contested positions are more susceptible to challenge. A successful debunk reduces the target model's truthfulness by 25% and its salience by 0.15, cascades partial damage to directly derivative models ($\theta_{\text{actual}} \times 0.88$ for children), and earns the researcher a publication and reputation proportional to the impact of the discredited model. The original author incurs a reputational penalty equal to half of the debunker's reward. The implementation (`researcher.py`, `_debunk`):
 
 ```python
-proficiency  = self.domain_skills[target.domain]
-success_prob = proficiency * (1.0 - target.actual_truthfulness)
+proficiency       = self.domain_skills[target.domain]
+instability_boost = 1.0 + 0.5 * (1.0 - target.landscape_stability)  # peak models more vulnerable
+success_prob      = proficiency * (1.0 - target.actual_truthfulness) * instability_boost
 if self.random.random() < success_prob:
     target.actual_truthfulness = max(0.01, target.actual_truthfulness * 0.75)
     target.salience            = max(0.0,  target.salience - 0.15)

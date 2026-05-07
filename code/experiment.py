@@ -1,25 +1,42 @@
 """
 30-seed confirmatory experiment.
 
-MODEL SPECIFICATION — 2026-05-05
+MODEL SPECIFICATION — 2026-05-07  (v3: epistemic landscape)
   Scenarios    : SPEC (peak_skill_mean=0.55, peak_skill_std=0.07,
                         other_skill_mean=0.25, other_skill_std=0.06)
                  GEN  (peak_skill_mean=0.55, peak_skill_std=0.08,
                         other_skill_mean=0.33, other_skill_std=0.08)
   Shared params: selection_interval=40, n_labs=10, researchers_per_lab=5,
                  n_domains=10, train_threshold=0.30, skill_gain_attempt=0.06,
-                 skill_gain_train=0.08, cull_fraction=0.25, mutation_std=0.04
-  Key formulae : success_probability = (sim + avg*(1-sim)) * (actual/reported)
-                 skill_bias = (domain_skill / mean_skill) ** 0.5
-                 bias_inflation ~ clip(N(0.10, 0.05), 0, 0.30)  [normal publish]
-                               ~ clip(N(0.05, 0.03), 0, 0.15)  [breakthrough]
-  New mechanics: breakthrough — skill²×0.10 explore probability; salience shock
-                               ×0.35 to domain incumbents; higher truthfulness gain
-                 expert truth correction — proficiency>0.50 failed replications
-                               erode actual_truthfulness by proficiency×0.015×(1+gap)
+                 skill_gain_train=0.08, cull_fraction=0.25, mutation_std=0.04,
+                 social_learn_strength=0.30, misconduct_base_rate=0.05
+
+  Key formulae:
+    success_probability = (sim + avg*(1-sim))
+                          * (actual/reported)
+                          * (0.75 + 0.25*landscape_stability)
+
+    skill_bias = (domain_skill / mean_skill) ** 0.5
+
+    bias_inflation [normal]      ~ clip(N(0.10 + pressure*0.08 + landscape_pb, 0.05), 0, 0.45)
+    bias_inflation [breakthrough]~ clip(N(0.05, 0.03) + landscape_pb,  0, 0.45)
+    bias_inflation [misconduct]  ~ clip(N(0.22, 0.06) + landscape_pb, 0, 0.45)
+
+  Mechanics (v1): breakthrough (skill²×0.10; salience shock ×0.35; high truthfulness),
+                  expert truth correction (proficiency>0.50 failures erode actual_truthfulness)
+  Mechanics (v2): career stages (explore boost decaying over 150 steps),
+                  social learning (lab domain success signal, λ=0.30, decay×0.90/step),
+                  competitive pressure bias (pressure ∝ 1 − rep/median_rep),
+                  misconduct pathway (p_base=0.05, scales with pressure),
+                  Matthew effect (reputation amplifies salience in exploit values)
+  Mechanics (v3): epistemic landscape per domain — 3 Gaussian valleys + 4 peaks;
+                  researcher theory-space positions converge via gradient descent;
+                  stability modifies replication probability, debunk vulnerability,
+                  salience decay (up to −25%), and publication bias inflation (up to +0.15)
+
   Steps        : 300 per run
   Seeds        : 0..29 (30 per scenario)
-  Last updated : 2026-05-05
+  Last updated : 2026-05-07
 """
 from __future__ import annotations
 

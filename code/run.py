@@ -1,16 +1,16 @@
 """
 run.py — entry point for the Science Lab ABM.
 
-Run from the BA/abm/ folder:
-    python run.py
+Run from the BAThesis/code/ folder:
+    .venv/bin/python3 run.py
 
 Scenarios
 ---------
-LOW  (specialist):  one sharp peak, near-zero everywhere else
-                    → labs are trapped in their niche, domain monopolies form
+LOW  (specialist):  one pronounced peak domain, weak secondary skills (μ≈0.25)
+                    → researchers concentrate in their niche; domain monopolies form
 
-HIGH (generalist):  same peak but wide distribution for other domains
-                    → natural secondary peaks emerge, labs can roam freely
+HIGH (generalist):  same peak domain, elevated secondary baseline (μ≈0.33)
+                    → researchers can engage profitably across multiple domains
 """
 
 from world import ScienceWorld

@@ -173,8 +173,11 @@ class Researcher(mesa.Agent):
         )
         social_bonus = 1.0 + self.model.social_learn_strength * np.tanh(social_signal)
 
-        # Matthew effect
-        matthew_factor     = 1.0 + 0.30 * np.tanh(self.reputation * 0.05)
+        # Matthew effect (gated by enable_realism)
+        if self.model.enable_realism:
+            matthew_factor = 1.0 + 0.30 * np.tanh(self.reputation * 0.05)
+        else:
+            matthew_factor = 1.0
         effective_salience = m.salience * matthew_factor
 
         # Stability attraction: agents prefer work in stable theory-space
@@ -237,12 +240,15 @@ class Researcher(mesa.Agent):
             float(np.clip(raw_pos[1], 0.01, 0.99)),
         )
 
-        # Competitive pressure → misconduct probability
-        median_rep = self.model._median_rep
-        pressure   = float(np.clip(1.0 - self.reputation / median_rep, 0.0, 1.0)) \
-                     if median_rep > 0 else 0.0
-        misconduct_prob = self.model.misconduct_base_rate * (1.0 + pressure * 2.0)
-        is_misconduct   = (not is_breakthrough) and (self.random.random() < misconduct_prob)
+        # Competitive pressure → misconduct probability (gated by enable_realism)
+        if self.model.enable_realism:
+            median_rep = self.model._median_rep
+            pressure   = float(np.clip(1.0 - self.reputation / median_rep, 0.0, 1.0)) \
+                         if median_rep > 0 else 0.0
+            misconduct_prob = self.model.misconduct_base_rate * (1.0 + pressure * 2.0)
+            is_misconduct   = (not is_breakthrough) and (self.random.random() < misconduct_prob)
+        else:
+            is_misconduct   = False
 
         self.model.spawn_model(
             origin_lab_id=self.lab_id,
@@ -363,12 +369,16 @@ class Researcher(mesa.Agent):
                 current_pos + 0.10 * (np.array(target.position) - current_pos)
             )
 
-            # Follow-up spawn — gradient-descent position toward valley
+            # Follow-up spawn — gradient-descent position toward valley (only if landscape on)
             n_domain   = self.model._cached_domain_counts.get(target.domain, 0)
             spawn_prob = 0.15 / (1.0 + np.log1p(n_domain))
             if self.random.random() < spawn_prob:
-                landscape  = self.model.landscapes[target.domain]
-                next_pos   = landscape.step_toward_valley(*target.position, step_size=0.05)
+                if self.model.enable_landscape:
+                    landscape = self.model.landscapes[target.domain]
+                    next_pos  = landscape.step_toward_valley(*target.position, step_size=0.05)
+                else:
+                    # neutralised: place follow-up at the parent position (no drift toward valley)
+                    next_pos  = target.position
                 self.model.spawn_model(
                     origin_lab_id=self.lab_id,
                     domain=target.domain,
@@ -413,7 +423,9 @@ class Researcher(mesa.Agent):
         top = sorted(scored, key=lambda x: x[2], reverse=True)[:2]
         top.append(('explore', best_domain, self._explore_value(best_domain)))
 
-        stage_boost = max(0.0, 1.0 - self.career_age / 150.0)
+        # Career stages (gated by enable_realism)
+        stage_boost = (max(0.0, 1.0 - self.career_age / 150.0)
+                       if self.model.enable_realism else 0.0)
 
         mean_sk = float(np.mean(self.domain_skills)) + 1e-8
         weights = []

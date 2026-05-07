@@ -69,6 +69,8 @@ class ScienceWorld(mesa.Model):
                  skill_gain_train:     float = 0.08,
                  social_learn_strength: float = 0.30,
                  misconduct_base_rate:  float = 0.05,
+                 enable_landscape:      bool  = True,
+                 enable_realism:        bool  = True,
                  rng: int | None             = None):
         super().__init__(rng=rng)
         self.n_domains           = n_domains
@@ -89,6 +91,14 @@ class ScienceWorld(mesa.Model):
         # realism parameters
         self.social_learn_strength = social_learn_strength
         self.misconduct_base_rate  = misconduct_base_rate
+
+        # ablation flags — when False, the corresponding mechanism is neutralised
+        self.enable_landscape = enable_landscape
+        self.enable_realism   = enable_realism
+        if not enable_realism:
+            # zero out the v2 mechanisms that have explicit strength parameters
+            self.social_learn_strength = 0.0
+            self.misconduct_base_rate  = 0.0
 
         self.lab_turnover_events: list[tuple] = []
         self.scientific_models: list[ScientificModel] = []
@@ -373,9 +383,14 @@ class ScienceWorld(mesa.Model):
                    float(self.rng.uniform(0.05, 0.95)))
         else:
             pos = position
-        landscape         = self.landscapes[domain]
-        land_stability    = landscape.stability(*pos)
-        landscape_pb      = landscape.position_bias(*pos)   # extra bias from peak position
+        if self.enable_landscape:
+            landscape         = self.landscapes[domain]
+            land_stability    = landscape.stability(*pos)
+            landscape_pb      = landscape.position_bias(*pos)
+        else:
+            # neutralised: same stability for every model, no peak bias amplification
+            land_stability    = 0.5
+            landscape_pb      = 0.0
 
         # --- truthfulness gain ---
         if breakthrough:
@@ -392,7 +407,9 @@ class ScienceWorld(mesa.Model):
         else:
             alpha = 2.0 + (max_truth * 10)
             gain  = float(self.rng.beta(alpha, 5)) * gap * 0.5
-            if author_reputation is not None and self._median_rep > 0:
+            if (self.enable_realism
+                and author_reputation is not None
+                and self._median_rep > 0):
                 pressure = float(np.clip(
                     1.0 - author_reputation / self._median_rep, 0.0, 1.0
                 ))

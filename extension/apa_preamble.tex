@@ -7,12 +7,19 @@
 
 \renewcommand{\maketitle}{%
   \begin{titlepage}
-    % UZH logo (top-left)
-    \noindent
-    \includegraphics[width=3.2cm]{extension/uzh-logo.png}\par
+    % UZH logo — absolutely positioned relative to the page corner
+    % (independent of geometry margins). Adjust xshift / yshift / width
+    % to move and resize: xshift = distance from LEFT page edge,
+    % yshift = NEGATIVE distance from TOP page edge.
+    \begin{tikzpicture}[remember picture, overlay]
+      \node[anchor=north west, inner sep=0pt]
+        at ([xshift=2cm, yshift=-1.5cm]current page.north west)
+        {\includegraphics[width=5cm]{extension/uzh-logo.png}};
+    \end{tikzpicture}%
 
-    % Push title to roughly one third of the page
-    \vspace{4.2cm}
+    % Vertical space before the title (TikZ block consumes no flow space,
+    % so this controls how far down the title block starts).
+    \vspace*{6cm}
 
     \begin{center}
       % Title block

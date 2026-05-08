@@ -121,8 +121,10 @@ def main():
     ax_a.set_xticklabels([LAYER_LABELS[L] for L in LAYER_ORDER], fontsize=8.5)
     ax_a.set_ylabel("Replication failure rate")
     ax_a.set_title("A.  H1 across model layers", pad=8, fontsize=11)
-    ax_a.set_ylim(0.50, max(max(spec_means), max(gen_means)) + 0.07)
-    ax_a.legend(loc="upper right", frameon=False, fontsize=9)
+    # add headroom above the highest annotation so the legend has clean space
+    a_top = max(max(spec_means), max(gen_means)) + 0.10
+    ax_a.set_ylim(0.50, a_top)
+    ax_a.legend(loc="upper left", frameon=False, fontsize=9)
     ax_a.grid(axis="y", color="#EEE", linewidth=0.5, zorder=0)
 
     # Panel B: H2 (domain Gini)
@@ -153,8 +155,10 @@ def main():
     ax_b.set_xticklabels([LAYER_LABELS[L] for L in LAYER_ORDER], fontsize=8.5)
     ax_b.set_ylabel("Per-domain publication Gini")
     ax_b.set_title("B.  H2 across model layers", pad=8, fontsize=11)
-    ax_b.set_ylim(0, max(max(spec_means_g), max(gen_means_g)) + 0.03)
-    ax_b.legend(loc="upper right", frameon=False, fontsize=9)
+    # extra headroom so annotations clear the upper bound and the legend
+    b_top = max(max(spec_means_g), max(gen_means_g)) + 0.10
+    ax_b.set_ylim(0, b_top)
+    ax_b.legend(loc="upper left", frameon=False, fontsize=9)
     ax_b.grid(axis="y", color="#EEE", linewidth=0.5, zorder=0)
 
     fig.suptitle("Layer-decomposition ablation: how H1 and H2 effect sizes change "

@@ -181,9 +181,13 @@ for ax, col, hyp, ylabel, locator, ylo, yhi in panels2:
     jitter_strip(ax, sv, 1, SPEC_COL, "left")
     jitter_strip(ax, gv, 1, GEN_COL,  "right")
 
-    top = max(sv.max(), gv.max())
+    # Place bracket at a fixed fraction of the visible panel range so the
+    # significance label always sits inside the panel — independent of any
+    # outlier values that exceed the chosen ylim (e.g. H4 debunk-rate seeds
+    # can reach ~0.007 while the panel is zoomed to 0.0023 to keep the bulk
+    # of the distribution legible).
     pad = (yhi - ylo) * 0.04
-    bracket_y = top + pad
+    bracket_y = ylo + (yhi - ylo) * 0.95
     ax.annotate("", xy=(0.62, bracket_y), xytext=(1.38, bracket_y),
                 arrowprops=dict(arrowstyle="-", color="black", lw=0.7))
     sig_label = sig if sig == "n.s." else sig

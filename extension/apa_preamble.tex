@@ -1,9 +1,56 @@
 % APA 7th Edition — LaTeX preamble for Quarto PDF
 % Assumes XeLaTeX (set via pdf-engine: xelatex in YAML)
 
-% --- Title page: force pagebreak after \maketitle -----------
+% --- Title page: custom UZH layout (overrides Quarto's \maketitle) ----
 \usepackage{etoolbox}
-\apptocmd{\maketitle}{\newpage}{}{}
+\usepackage{graphicx}
+
+\renewcommand{\maketitle}{%
+  \begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+
+    % UZH logo (top, centred)
+    \includegraphics[width=5cm]{extension/uzh-logo.png}\par
+    \vspace{2.2cm}
+
+    % Title block
+    {\Large\bfseries Of the Standards of Science\par}
+    \vspace{0.6em}
+    {\large\itshape Computational Modelling as Psychology's Common Language\par}
+    \vspace{2.2cm}
+
+    % Type of work
+    Bachelor's Thesis\par
+    \vspace{0.4em}
+    presented to the Faculty of Arts and Social Sciences\par
+    \vspace{0.4em}
+    of the University of Zurich\par
+    \vspace{0.4em}
+    for the degree of Bachelor of Science in Psychology\par
+    \vspace{2cm}
+
+    % Author
+    by\par
+    \vspace{0.4em}
+    Yuzan Ilario Flury\par
+    \vspace{0.4em}
+    of [Place of Birth]\par
+    \vspace{2cm}
+
+    % Examiner
+    Accepted in the Spring Semester 2026\par
+    \vspace{0.4em}
+    on the recommendation of\par
+    \vspace{0.4em}
+    Prof.\ Dr.\ [Examiner Name]\par
+    \vfill
+
+    % Place + date
+    (Zurich, May 2026)\par
+    \vspace{1cm}
+  \end{titlepage}
+}
 
 % --- Abstract environment: centred heading, no indent -------
 \usepackage{abstract}

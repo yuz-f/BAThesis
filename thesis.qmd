@@ -201,7 +201,7 @@ The Methods presentation organises around the seven elements of the ODD (Overvie
 
 ## Simulation Environment
 
-The simulation was implemented in Python using Mesa [@Kazil2020], an open-source agent-based modelling framework. Mesa provides a standardised architecture for defining agents and model environments, a built-in data collector for recording agent- and model-level variables at each time step, and deterministic random number generation via a seeded NumPy generator, enabling exact reproduction of any run. The complete source code is publicly available at [REPOSITORY URL — to be inserted before submission].
+The simulation was implemented in Python using Mesa [@Kazil2020], an open-source agent-based modelling framework. Mesa provides a standardised architecture for defining agents and model environments, a built-in data collector for recording agent- and model-level variables at each time step, and deterministic random number generation via a seeded NumPy generator, enabling exact reproduction of any run. The complete source code is publicly available at <https://github.com/yuz-f/BAThesis>.
 
 Each simulation run proceeds for 300 discrete time steps. At each step, agents act in a randomly shuffled order, environmental dynamics are updated, and all outcome variables are recorded. Two scenarios are run consecutively under identical structural parameters, differing only in the distribution of initial researcher skill profiles (see @sec-scenarios).
 
@@ -476,7 +476,7 @@ The simulated specialist failure rate (62%) is in the same range as the non-repl
 Left: replication failure rate. Right: Gini coefficient of domain-level publication counts.
 Each half-violin shows the kernel-density estimate for one scenario; points are individual seeds; the thick vertical line spans the interquartile range and the circle marks the median.
 Specialist (blue) and Generalist (green) scenarios are plotted on opposing halves.
-Asterisks above the bracket indicate $p < .001$ (Mann-Whitney $U$, two-sided).}
+Asterisks above each bracket indicate Mann-Whitney significance level (\textit{n.s.} not significant, \textit{*} $p < .05$, \textit{**} $p < .01$, \textit{***} $p < .001$, two-sided); panel subtitles report the exact statistics computed from the data shown.}
 \label{fig:results-confirmatory}
 \end{figure}
 ```
@@ -520,8 +520,8 @@ The structural mechanism underlying this directional pattern is informative even
 \captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}
 \caption{\textit{Distributions of the two exploratory outcome variables across 30 independent simulation runs per scenario.}
 Left: mean end-of-simulation researcher reputation. Right: debunk impact rate (fraction of career reputation earnings permanently lost to successful debunking events).
-Figure conventions follow Figure~\ref{fig:results-confirmatory}.
-The null result for reputation (n.s.) indicates equivalent career outcomes via structurally different paths (see text); the significant reversal for debunk impact reflects the structural sheltering of high-truthfulness specialist publications.}
+Figure conventions follow Figure~\ref{fig:results-confirmatory}; panel subtitles report the exact statistics computed from the data shown.
+The null result for reputation (\textit{n.s.}) indicates equivalent career outcomes via structurally different paths (see text); the directional reversal for debunk impact (generalists losing more, contrary to the pre-study direction) is consistent with the structural sheltering of high-truthfulness specialist publications but does not reach statistical significance under the current model version.}
 \label{fig:results-exploratory}
 \end{figure}
 ```

@@ -75,6 +75,27 @@ def jitter_strip(ax, data, x, color, side="left"):
                linewidths=0, zorder=4)
 
 
+def compute_stats(sv, gv, label):
+    """Compute Mann-Whitney U, p, and Cohen's d from raw arrays.
+
+    Returns (subtitle_string, significance_marker) — guaranteeing that
+    the figure annotation matches the data being plotted.
+    """
+    u, p = stats.mannwhitneyu(sv, gv, alternative="two-sided")
+    pooled_sd = np.sqrt(
+        ((len(sv) - 1) * sv.var(ddof=1) + (len(gv) - 1) * gv.var(ddof=1))
+        / (len(sv) + len(gv) - 2)
+    )
+    d = (sv.mean() - gv.mean()) / pooled_sd if pooled_sd > 0 else 0.0
+    p_str = "p < .0001" if p < 1e-4 else f"p = {p:.3f}".replace("0.", ".")
+    subtitle = f"{label}  ·  U = {u:.1f},  {p_str},  d = {d:.2f}"
+    if   p < 0.001: sig = "***"
+    elif p < 0.01:  sig = "**"
+    elif p < 0.05:  sig = "*"
+    else:           sig = "n.s."
+    return subtitle, sig
+
+
 def annotate_p(ax, x, y_top, label, dy=0.03):
     """Significance bracket above the pair."""
     ax.annotate("", xy=(x - 0.5, y_top + dy),
@@ -89,21 +110,20 @@ fig, axes = plt.subplots(1, 2, figsize=(6.5, 4.2))
 fig.subplots_adjust(wspace=0.45)
 
 panels = [
-    (axes[0], "fail_rate",
+    (axes[0], "fail_rate", "H1",
      "Replication Failure Rate",
-     "H1  ·  U = 688.0,  p = .0004,  d = 1.00",
      MultipleLocator(0.05),
-     0.46, 0.72, "***"),
-    (axes[1], "gini",
+     0.46, 0.72),
+    (axes[1], "gini", "H2",
      "Gini Coefficient\n(Publication Domain Concentration)",
-     "H2  ·  U = 802.0,  p < .0001,  d = 1.70",
      MultipleLocator(0.05),
-     0.04, 0.22, "***"),
+     0.04, 0.22),
 ]
 
-for ax, col, ylabel, subtitle, locator, ylo, yhi, sig in panels:
+for ax, col, hyp, ylabel, locator, ylo, yhi in panels:
     sv = spec[col].values
     gv = gen[col].values
+    subtitle, sig = compute_stats(sv, gv, hyp)
 
     violin_half(ax, sv, 1, SPEC_COL, "left")
     violin_half(ax, gv, 1, GEN_COL,  "right")
@@ -141,21 +161,20 @@ fig, axes = plt.subplots(1, 2, figsize=(6.5, 4.2))
 fig.subplots_adjust(wspace=0.55)
 
 panels2 = [
-    (axes[0], "mean_reputation",
+    (axes[0], "mean_reputation", "H3",
      "Mean Researcher Reputation",
-     "H3  ·  U = 399.0,  p = .455,  d = −0.22",
      MultipleLocator(2),
-     4.0, 18.0, "n.s."),
-    (axes[1], "debunk_impact_rate",
+     4.0, 18.0),
+    (axes[1], "debunk_impact_rate", "H4",
      "Debunk Impact Rate\n(reputation lost / career earnings)",
-     "H4  ·  U = 222.0,  p = .0008,  d = −0.77",
      MultipleLocator(0.0005),
-     -0.0001, 0.0023, "***"),
+     -0.0001, 0.0023),
 ]
 
-for ax, col, ylabel, subtitle, locator, ylo, yhi, sig in panels2:
+for ax, col, hyp, ylabel, locator, ylo, yhi in panels2:
     sv = spec[col].values
     gv = gen[col].values
+    subtitle, sig = compute_stats(sv, gv, hyp)
 
     violin_half(ax, sv, 1, SPEC_COL, "left")
     violin_half(ax, gv, 1, GEN_COL,  "right")

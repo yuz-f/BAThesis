@@ -74,6 +74,8 @@ This is a genuine challenge for any argument in favour of computational modellin
 
 ## Computational Models as a Common Language
 
+<!-- VOICE OWNERSHIP: Entirely AI-drafted (commit d9b6cc8). Three paragraphs. Rewrite the math/physics-roots argument (paragraph 2) in your own framing — this is your original idea, the prose isn't yet. -->
+
 Taken together, the findings reviewed above suggest that the replication crisis in psychology is not primarily a story of individual bad actors but of a field whose theoretical and communicative infrastructure is too informal to support cumulative progress. The appropriate response is not only procedural reform — pre-registration, power analysis, open data — but a deeper shift toward shared formal frameworks that make theoretical commitments visible, comparable, and testable across labs [@MuthukrishnaHenrich2019; @vanRooijBaggio2021].
 
 The case for such frameworks is partly an argument from the more mature sciences. Physics, mathematics, and computer science share a structural feature that psychology largely lacks: a stock of explicit axioms, formal definitions, and standardised notational conventions that allow distant researchers to interpret one another's claims with minimal ambiguity. A theorem stated in the language of differential geometry travels between laboratories without semantic loss; a verbal construct like "self-control" or "implicit attitude" does not. @MuthukrishnaHenrich2019 argue that the absence of an overarching theoretical framework — comparable to evolutionary theory in biology or general relativity in physics — is itself a structural cause of the replication crisis, because without such a framework empirical findings cannot be evaluated as confirmatory or surprising relative to a shared body of expectations. @vanRooijBaggio2021 develop a complementary point: psychological science has prioritised the *empirical* cycle (testing effects) over the *theoretical* cycle (specifying explanations with the formal precision needed to determine what would count as a test in the first place), and recommend importing the levels-of-analysis methodology that has worked in cognitive science from its informatic roots.
@@ -426,6 +428,9 @@ A third **Uniform** scenario is run as a control. Here every researcher's skill 
 
 ## Parameter Status: Empirical, Heuristic, and Structural Choices
 
+<!-- VOICE OWNERSHIP: AI-drafted in tier 4 (commit aa3e1f7). Heavy use of formal categorisation prose. Rewrite into your own discursive register; the four-class structure can stay but the framing sentences should be yours. -->
+
+
 The model contains roughly thirty free parameters in addition to the manipulation variables shown in @tbl-params. Their status is mixed, and the thesis benefits from making this explicit rather than treating them as a uniform list. Following the categorisation framework familiar from agent-based-modelling methodology, the parameters fall into four classes.
 
 *Empirically motivated parameters* are anchored, however loosely, to the published literature. The misconduct base rate (0.05 per publication) is connected to @Fang2012's report that 67% of retracted biomedical articles involved misconduct, which sets a rough order-of-magnitude floor. The career-stage decay horizon (150 steps) is consistent with @Petersen2012's empirical work on early-career risk-taking and consolidation timescales. The OSC failure-rate empirical regime [@OpenScienceCollaboration2015] is referenced post-hoc as a sanity check on the simulated failure rate, not as a calibration target. These are the only parameters with non-trivial empirical anchoring; everything else is theoretically or structurally motivated.
@@ -471,6 +476,9 @@ Asterisks above the bracket indicate $p < .001$ (Mann-Whitney $U$, two-sided).}
 ```
 
 ## Temporal Dynamics {#sec-temporal}
+
+<!-- VOICE OWNERSHIP: AI-drafted in tier 2.3 (commit 8e770c8). Keep the numbers and figure ref; rewrite the interpretive framing in your voice. -->
+
 
 The end-state metrics reported above summarise 300-step trajectories. To show how the H1 and H2 differences emerge over time, Figure \ref{fig:temporal} plots both metrics across the full simulation horizon for all three scenarios, with mean trajectories and 95% confidence bands across 30 seeds.
 
@@ -520,6 +528,9 @@ Mean actual truthfulness converged to identical values in both scenarios (.842 v
 
 ## Control Check: Uniform Skill Distribution {#sec-control}
 
+<!-- VOICE OWNERSHIP: AI-drafted in tier 2.2 (commit e719e33). The four-findings structure ("two sharpen, two complicate") is AI framing — recast in your own structure if it doesn't read like you. -->
+
+
 To distinguish whether the SPEC > GEN findings for H1 and H2 require skill *heterogeneity* — the structural feature manipulated by the Specialist/Generalist contrast — or simply reflect any non-trivial population dynamic in the model, a third *Uniform* scenario was run with all researchers having near-identical flat skill profiles centred at 0.40 (@sec-scenarios). The control was conducted under 30 independent seeds matching the main experiment. It yields four findings, two of which sharpen the headline interpretation and two of which complicate it productively.
 
 **H2 is cleanly confirmed: domain concentration requires skill heterogeneity.** The Gini coefficient under Uniform skills was .075 (95% CI [.066, .084]), substantially lower than both the Specialist (.139) and Generalist (.093) scenarios. The full ordering is SPEC > GEN > UNIFORM, with all pairwise comparisons highly significant (SPEC vs UNIFORM: *U* = 875, *p* < .0001, *d* = 2.79; GEN vs UNIFORM: *U* = 658, *p* = .002, *d* = 0.82). With flat profiles, the skill-bias term in action selection (Equation 6) provides no preferential pull toward any domain, and the Gini falls to a near-baseline level driven only by stochastic variation in publishing activity. This converts H2 from a directional finding to a calibrated one: domain concentration emerges not because the model has any non-trivial dynamic, but specifically because skill heterogeneity is present, and the magnitude of concentration scales with the degree of heterogeneity.
@@ -533,6 +544,9 @@ To distinguish whether the SPEC > GEN findings for H1 and H2 require skill *hete
 Together, the Uniform control transforms the contribution of the work. H2 is sharpened (heterogeneity is the necessary condition); H1 is reframed as a U-shape rather than a monotonic story; H3 is explained as a ceiling effect; H4 is strengthened by the addition of a third ordering point. The simulation now answers questions about skill *distribution shape* rather than only about the binary specialist/generalist contrast.
 
 ## Validation: Parameter Recovery and Empirical Comparison {#sec-validation}
+
+<!-- VOICE OWNERSHIP: AI-drafted in tier 3.1+3.2 (commit 063fdeb). Heavy academic hedging ("interpretable rather than disqualifying", "qualitatively similar ... but at a magnitude below"). Rewrite hedges in your idiom. -->
+
 
 Two further analyses test the model's methodological standing beyond the sensitivity check below. The first is internal: does the simulation output carry information about its own input parameter? The second is external: does the model produce inequality patterns at the same magnitude as documented in real academic publication distributions? Figure \ref{fig:validation} reports both.
 
@@ -555,6 +569,9 @@ The undershoot is interpretable rather than disqualifying. Three structural feat
 Together these analyses sharpen the thesis's methodological standing: the manipulation is recoverable from outcomes (so the H1/H2 results reflect the manipulation, not seed noise), and the model's empirical correspondence is partial and quantitatively bounded rather than implicitly assumed. The Gini undershoot is itself an interpretable claim about which empirical features the present model architecture can and cannot reproduce.
 
 ## Layer-Decomposition Ablation {#sec-ablation}
+
+<!-- VOICE OWNERSHIP: AI-drafted in tier 4 (commit 103291b). LONGEST AI-heavy section. Watch for: "honest reading", "structural component", "doing real work here", "interaction effect", repeated bolded sub-claim headers. Rewrite each bolded sub-section in your own voice. -->
+
 
 A central concern with computational models of this kind is that headline findings can be implicit consequences of architectural choices made when the model was constructed, rather than substantive properties of the system being modelled. To address this concern directly, three nested model layers were run under both the Specialist and Generalist scenarios with 15 seeds per cell, yielding 90 additional simulations:
 
@@ -597,6 +614,9 @@ To evaluate the robustness of the confirmatory findings, a one-at-a-time sensiti
 
 ## What the Model Demonstrates
 
+<!-- VOICE OWNERSHIP: H1/H2/H3/H4 paragraphs were heavily rewritten across tiers (most recently 103291b). The section is longer than it needs to be and structured around AI-style "honest reading" / "calibrated structural claim" framings. Significant rewrite recommended. -->
+
+
 The results provide a direct answer to each of the four research questions. H1 — that the specialist scenario produces a higher replication failure rate than the generalist scenario — was confirmed (*d* = 0.78). It is important to be precise about what this confirmation establishes, and the layer-decomposition ablation (@sec-ablation) materially sharpens this account. A natural and serious objection to the result is that the success-probability rule (Equation 1) bakes the direction of H1 into the model's architecture: specialists by construction have lower profile-correlation with non-peak-domain models, so of course they fail more. The ablation tests this directly. At Layer 1 — Equation 1 plus all base dynamics, with no v2 realism and no v3 landscape — the SPEC vs GEN failure rate gap is essentially zero (*d* = 0.04, *p* = .90). The directional H1 effect emerges only when realism extensions are added (Layer 2: *d* = 0.61), interacting with skill heterogeneity to produce the gap. The success-probability rule's profile-mismatch penalty is therefore not, on its own, sufficient to produce the headline result; H1 is an *interaction effect* between skill distribution and the career-pressure dynamics (career stages, salience-visibility through the Matthew effect, competitive-pressure bias inflation, misconduct probability). This is a stronger and less defensive claim than the simulation supports for H2. The Uniform-skill control (@sec-control) sharpens this picture in an unexpected direction: a population of uniformly mediocre researchers produces an even higher failure rate (.645) than the Specialist scenario, because Uniform researchers can attempt nearly any model without training and do so 91% of the time, generating high-attempt, mediocre-success dynamics that the Specialist and Generalist scenarios both avoid through training requirements. The relationship between skill specialisation and replication failure is therefore U-shaped rather than monotonic — both extremes (full specialisation, full uniformity) produce more failures than the generalist middle, for structurally different reasons.
 
 H2 — that the specialist scenario produces greater domain concentration of publications than the generalist scenario — was also confirmed (*d* = 2.14, the largest effect in the study). The H2 case is more directly architectural than H1's: at Layer 1 of the ablation — base dynamics with no realism and no landscape — the SPEC vs GEN gap in per-domain Gini is already large (*d* = 2.45). The skill-bias term in action selection (Equation 6) pulls specialists toward their peak domain in any layer of the model that has skill heterogeneity, and is sufficient on its own to produce strong concentration. Realism amplifies the effect (Layer 2: *d* = 3.21); the landscape attenuates it slightly (Layer 3: *d* = 2.12). The honest H2 reading is therefore: direction is partly built into the action-selection rule, magnitude is the simulation's contribution, and the ordering relative to a no-heterogeneity control (the Uniform scenario) is the substantive structural claim — concentration scales with the degree of skill heterogeneity, which is more informative than a binary directional comparison alone. What the simulation establishes is the magnitude of the resulting concentration difference (Gini .139 vs. .093) and its trajectory: over 300 steps of selection, assimilation, and landscape convergence, the initial action-selection asymmetry compounds rather than dissipating. Specialist research programmes converge on narrow, stable niches because three mechanisms reinforce one another — skill-bias preferentially weights the peak domain, successful exploitation assimilates skills toward exploited models, and follow-up publications drift toward the nearest landscape valley. The qualitative robustness to parameter variation (Sensitivity Analysis, above) suggests that the *strength* of this compounding is not narrowly tuned. The substantive claim, then, is that even a parameter-free skill-bias rule with a square-root dampener produces multiplicative concentration over realistic horizons, given the surrounding dynamics. The Uniform-skill control provides a clean falsification baseline: with flat profiles and no preferred domain, the Gini coefficient drops to .075, well below either Specialist (.139) or Generalist (.093). Concentration is therefore not a generic property of the model's dynamics; it requires skill heterogeneity as a necessary condition, and its magnitude scales with the degree of heterogeneity. This converts H2 from a directional finding to a calibrated structural claim about the relationship between skill-distribution shape and publication-landscape concentration.
@@ -617,6 +637,9 @@ The present model is situated within a growing tradition of agent-based models o
 
 ## Limitations: What the Model Cannot Tell Us {#sec-limitations}
 
+<!-- VOICE OWNERSHIP: Extended in tier 4 (commit aa3e1f7) with new "third limitation" paragraph on the epistemic landscape. That paragraph in particular is AI-drafted. The first two limitations are older and may already be in your voice — verify. -->
+
+
 Any computational model carries a gap between what it formalises and what it claims to represent, and the present model is no exception.
 
 The most important limitation concerns what the confirmatory results do and do not establish. The directions of H1 and H2 follow from how skill enters Equation 1 (success probability) and Equation 6 (skill-biased action selection). A specialist's skill profile is, by construction, less well correlated with non-peak-domain complexity profiles than a generalist's, and a specialist's high peak-to-mean ratio inflates the action-selection weight for their peak domain. The 30-seed experiment therefore does not test whether skill specialisation increases replication failure or domain concentration in real communities; it quantifies the magnitude and the dynamics of these effects under a particular formalisation. This distinction matters: a reader looking for evidence that real-world specialisation causes real-world replication failure should not take the confirmation of H1 as such evidence. What the model contributes is a controlled estimate of effect size given the assumed mechanism, an analysis of how the effect emerges through the interaction of selection, learning, salience decay, and landscape dynamics over 300 steps, and a sensitivity analysis indicating which parameters do and do not move the effect. That contribution is real but more modest than a strict reading of "confirmed hypothesis" would suggest.
@@ -633,6 +656,9 @@ Finally, the evolutionary selection mechanism is a substantial simplification of
 
 ## Implications and Their Limits
 
+<!-- VOICE OWNERSHIP: Rewritten in tier 4 cluster C (commit aa3e1f7) to remove policy creep. Heavy hedging language ("the work is consistent with the view that..."). The hedging is the right move; the wording is AI-style — rephrase in your idiom. -->
+
+
 What does this work imply for the reform agenda in psychology? The honest answer is: less than the simulation results, taken at face value, might suggest. The model's H1 and H2 findings concern a stylised population of fifty researchers, ten domains, and a particular formalisation of skill, replication, and publication dynamics over 300 simulated steps. Translating those findings into recommendations about real institutions, real career structures, or real training requires assumptions about the mapping between model and world that the simulation itself does not validate. Three points can nonetheless be raised cautiously.
 
 First, the work suggests that *skill distribution* is worth taking seriously as a structural variable in formal models of scientific communities, alongside the incentive and statistical variables that dominate the existing meta-scientific literature. Most reform proposals operate on the statistical interface between a researcher and a result — pre-registration, registered reports, open data. The present model is consistent with the view that the *skill interface* — whether a researcher has the competency to meaningfully evaluate work outside their primary domain — is a tractable additional axis for formal analysis. That is a claim about *what to model*, not a claim about *what to do* in a real psychology department.
@@ -642,6 +668,9 @@ Second, the H2 finding (and the Uniform-control sharpening) shows that domain co
 Third, any practical reading should be hedged rather than prescriptive. The model is consistent with the view that maintaining cross-domain coverage — whether through methodologists, meta-scientists, or replication infrastructure — is structurally valuable. It does not show that this is the right reform priority, that it would work in practice, or that the magnitudes observed in simulation translate to real institutional settings. The Gini undershoot relative to empirical publication distributions (@sec-validation) is one explicit reminder that the model's quantitative regime does not match the empirical one in all respects. Readers who want to draw policy conclusions from this work should treat it as a tractable formal lens for thinking about skill heterogeneity in scientific communities, not as evidence about which reforms will succeed.
 
 ## Signaling Theory and Information Asymmetry
+
+<!-- VOICE OWNERSHIP: Added in commit c90aa96 / refined in d6c875e (tier 3.3). Technical economic-theory register that may not match the rest of your thesis. Read for tonal consistency with your Introduction; rewrite if it reads as bolted-on. -->
+
 
 The reported-versus-actual truthfulness distinction has the formal structure of an information-asymmetry problem [@Spence1973; @Akerlof1970]: authors hold private knowledge of their model's true quality, while the community sees only the inflated signal. The competitive-pressure scaling — under which researchers with below-median reputation inflate more — gives the bias term a partial signaling-theoretic character: low-status senders have the most to gain from raising the signal, exactly the dynamic that produces adverse selection in classical lemons markets. The landscape adds a spatial layer to this. Peak positions accrue the greatest additional inflation while also making replication hardest, so models in apparently exciting (high-reported-truth) territory are precisely where the gap between reported and actual is largest — the model's analogue of adverse selection concentrating in segments where buyers find it hardest to verify quality.
 

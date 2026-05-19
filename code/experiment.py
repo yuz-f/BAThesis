@@ -6,12 +6,13 @@ MODEL SPECIFICATION — 2026-05-07  (v3: epistemic landscape, +UNIFORM control)
                           other_skill_mean=0.25, other_skill_std=0.06)
                  GEN     (peak_skill_mean=0.55, peak_skill_std=0.08,
                           other_skill_mean=0.33, other_skill_std=0.08)
-                 UNIFORM (peak_skill_mean=0.40, peak_skill_std=0.02,
-                          other_skill_mean=0.40, other_skill_std=0.02) — control:
-                          all researchers have near-identical flat profiles,
-                          no preferred domain. Tests whether H1/H2 effects
-                          require skill heterogeneity vs. follow from any
-                          non-uniform skill distribution.
+                 UNIFORM (peak_skill_mean=0.28, peak_skill_std=0.02,
+                          other_skill_mean=0.28, other_skill_std=0.02) — control:
+                          all researchers have near-identical flat profiles
+                          at the SPEC per-researcher mean (0.28), so the only
+                          difference vs. SPEC is the shape of the skill
+                          distribution. Tests whether H1/H2 effects require
+                          heterogeneity once mean skill is held constant.
   Shared params: selection_interval=40, n_labs=10, researchers_per_lab=5,
                  n_domains=10, train_threshold=0.30, skill_gain_attempt=0.06,
                  skill_gain_train=0.08, cull_fraction=0.25, mutation_std=0.04,
@@ -66,9 +67,13 @@ GEN = dict(
     other_skill_mean=0.33, other_skill_std=0.08,
     selection_interval=40,
 )
+# Flat scenario — matched to SPEC's per-researcher mean skill of 0.28
+# (= (0.55 + 9·0.25)/10). This removes the mean-skill confound: any
+# H1/H2 difference between SPEC and Flat is then attributable to the
+# *shape* of the skill distribution, not its overall magnitude.
 UNIFORM = dict(
-    peak_skill_mean=0.40, peak_skill_std=0.02,
-    other_skill_mean=0.40, other_skill_std=0.02,
+    peak_skill_mean=0.28, peak_skill_std=0.02,
+    other_skill_mean=0.28, other_skill_std=0.02,
     selection_interval=40,
 )
 SCENARIOS = {"SPEC": SPEC, "GEN": GEN, "UNIFORM": UNIFORM}

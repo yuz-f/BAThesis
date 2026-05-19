@@ -84,19 +84,23 @@ class ScientificModel:
         Salience decays each step.
 
         Two decay modifiers:
-          1. Truthfulness shield (original): high-truth models resist decay
-             while actively cited, fading over RECENCY_WINDOW uncited steps.
-          2. Landscape stability (new): valley models decay up to 25% more
-             slowly than peak models, reflecting that stable paradigms stay
-             relevant without constant new citations.
+          1. Truthfulness shield: high-truth models resist decay while
+             actively cited, fading over RECENCY_WINDOW uncited steps.
+             Uses actual_truthfulness rather than reported_truthfulness:
+             the shield should reward genuine quality, not publication
+             bias, so an inflated bad model gains no extra persistence
+             from its inflated reported value.
+          2. Landscape stability: valley models decay up to 25% more
+             slowly than peak models, reflecting that stable paradigms
+             stay relevant without constant new citations.
 
           effective_decay = base_decay
-                          × (1 − reported_truthfulness × recency_factor)
+                          × (1 − actual_truthfulness × recency_factor)
                           × (1 − 0.25 × landscape_stability)
         """
         self.steps_since_cited += 1
         recency_factor  = max(0.0, 1.0 - self.steps_since_cited / self.RECENCY_WINDOW)
-        effective_decay = self.salience_decay * (1.0 - self.reported_truthfulness * recency_factor)
+        effective_decay = self.salience_decay * (1.0 - self.actual_truthfulness * recency_factor)
         # Valley models persist longer — their stability buffers against obsolescence
         effective_decay *= (1.0 - 0.25 * self.landscape_stability)
         self.salience   = max(0.0, self.salience - effective_decay)

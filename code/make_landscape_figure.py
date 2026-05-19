@@ -7,12 +7,12 @@ mechanism and the scenario contrast it produces:
 
   Panel A: 3D surface plot of one representative domain's epistemic landscape
   Panel B: 2D heatmap of the same surface with seed-model position marked
-  Panel C: 2D heatmap with all SPEC-scenario models at t=300 (size = salience)
-  Panel D: 2D heatmap with all GEN-scenario models at t=300 (size = salience)
+  Panel C: 2D heatmap with all PEAKED-scenario models at t=300 (size = salience)
+  Panel D: 2D heatmap with all BROAD-scenario models at t=300 (size = salience)
 
 The seed is chosen so the landscape is identical across panels (landscapes are
 generated from rng before any scenario-specific parameters are consumed), which
-isolates the SPEC/GEN contrast to model-placement dynamics.
+isolates the PEAKED/BROAD contrast to model-placement dynamics.
 
 Saves to meta/img/landscape_figure.pdf
 Run from any directory: .venv/bin/python3 code/make_landscape_figure.py
@@ -44,16 +44,16 @@ matplotlib.rcParams.update({
     "savefig.pad_inches": 0.05,
 })
 
-SPEC = dict(peak_skill_mean=0.55, peak_skill_std=0.07,
+PEAKED = dict(peak_skill_mean=0.55, peak_skill_std=0.07,
             other_skill_mean=0.25, other_skill_std=0.06)
-GEN  = dict(peak_skill_mean=0.55, peak_skill_std=0.08,
+BROAD  = dict(peak_skill_mean=0.55, peak_skill_std=0.08,
             other_skill_mean=0.33, other_skill_std=0.08)
 
 STEPS = 300
 SEED  = 42                # landscape will be identical between scenarios at same seed
 
-SPEC_COL = "#2563EB"      # consistent with make_figures.py
-GEN_COL  = "#059669"
+PEAKED_COL = "#2563EB"      # consistent with make_figures.py
+BROAD_COL  = "#059669"
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -139,10 +139,10 @@ def scatter_models(ax, models_in_domain, salience_floor: float = 0.05):
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print(f"Running SPEC scenario (seed={SEED}, {STEPS} steps)…")
-    spec_world = run_scenario(SPEC, SEED, STEPS)
-    print(f"Running GEN  scenario (seed={SEED}, {STEPS} steps)…")
-    gen_world  = run_scenario(GEN,  SEED, STEPS)
+    print(f"Running PEAKED scenario (seed={SEED}, {STEPS} steps)…")
+    spec_world = run_scenario(PEAKED, SEED, STEPS)
+    print(f"Running BROAD  scenario (seed={SEED}, {STEPS} steps)…")
+    gen_world  = run_scenario(BROAD,  SEED, STEPS)
 
     # Pick the same representative domain from spec_world (landscapes are
     # identical between scenarios at the same seed because EpistemicLandscape
@@ -153,15 +153,15 @@ def main():
     landscape = spec_world.landscapes[domain]
     X, Y, Z   = landscape_grid(landscape, n=120)
 
-    # Sanity-check: confirm the GEN landscape for this domain is identical
+    # Sanity-check: confirm the BROAD landscape for this domain is identical
     _, _, Z_gen = landscape_grid(gen_world.landscapes[domain], n=120)
     assert np.allclose(Z, Z_gen), \
-        "Landscapes differ between SPEC and GEN at same seed — figure invalid."
+        "Landscapes differ between PEAKED and BROAD at same seed — figure invalid."
 
     # Models in this domain at t=300, per scenario
     spec_models = [m for m in spec_world.scientific_models if m.domain == domain]
     gen_models  = [m for m in gen_world.scientific_models  if m.domain == domain]
-    print(f"Models in D{domain}: SPEC={len(spec_models)}, GEN={len(gen_models)}")
+    print(f"Models in D{domain}: PEAKED={len(spec_models)}, BROAD={len(gen_models)}")
 
     # Find the seed model (uid is small for first-spawned)
     seed_model_pos = None
@@ -209,26 +209,26 @@ def main():
     cbar.set_label("instability $h$", fontsize=8)
     cbar.ax.tick_params(labelsize=7)
 
-    # Panel C: SPEC at t=300
+    # Panel C: PEAKED at t=300
     ax_c = fig.add_subplot(gs[1, 0])
     ax_c.contourf(X, Y, Z, levels=20, cmap="viridis_r")
     ax_c.contour(X, Y, Z, levels=10, colors="white", alpha=0.25, linewidths=0.5)
     scatter_models(ax_c, spec_models)
     ax_c.set_xlim(0, 1); ax_c.set_ylim(0, 1)
     ax_c.set_xlabel("theory-space $x$"); ax_c.set_ylabel("theory-space $y$")
-    ax_c.set_title(f"C.  Specialist scenario, $t=300$\n({len(spec_models)} total models in D{domain})",
-                   color=SPEC_COL, pad=10, fontsize=10)
+    ax_c.set_title(f"C.  Peaked scenario, $t=300$\n({len(spec_models)} total models in D{domain})",
+                   color=PEAKED_COL, pad=10, fontsize=10)
     ax_c.set_aspect("equal", adjustable="box")
 
-    # Panel D: GEN at t=300
+    # Panel D: BROAD at t=300
     ax_d = fig.add_subplot(gs[1, 1])
     ax_d.contourf(X, Y, Z, levels=20, cmap="viridis_r")
     ax_d.contour(X, Y, Z, levels=10, colors="white", alpha=0.25, linewidths=0.5)
     scatter_models(ax_d, gen_models)
     ax_d.set_xlim(0, 1); ax_d.set_ylim(0, 1)
     ax_d.set_xlabel("theory-space $x$"); ax_d.set_ylabel("theory-space $y$")
-    ax_d.set_title(f"D.  Generalist scenario, $t=300$\n({len(gen_models)} total models in D{domain})",
-                   color=GEN_COL, pad=10, fontsize=10)
+    ax_d.set_title(f"D.  Broad scenario, $t=300$\n({len(gen_models)} total models in D{domain})",
+                   color=BROAD_COL, pad=10, fontsize=10)
     ax_d.set_aspect("equal", adjustable="box")
 
     # legend for dot encoding

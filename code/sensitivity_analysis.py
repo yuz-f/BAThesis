@@ -1,7 +1,7 @@
 """
 sensitivity_analysis.py — one-at-a-time sensitivity analysis for the Science Lab ABM.
 
-For each fixed parameter, runs both specialist and generalist scenarios at
+For each fixed parameter, runs both peaked and broad scenarios at
 three levels (base × 0.70, base, base × 1.30) with N_RUNS replications each.
 All runs are parallelized across available CPU cores.
 
@@ -12,7 +12,7 @@ Key metrics recorded per run:
   - Mean best truthfulness (average of per-domain max truthfulness)
 
 The qualitative finding that matters:
-  specialists show higher replication failure rate AND higher Gini than generalists.
+  peaked-profile researchers show higher replication failure rate AND higher Gini than broad-profile researchers.
   If the sign of (spec − gen) flips for any parameter level, robustness is compromised.
 
 Usage:
@@ -49,11 +49,11 @@ BASE = {
 }
 
 # Scenario skill distributions (must match run.py)
-SPECIALIST = dict(
+PEAKED = dict(
     peak_skill_mean=0.55, peak_skill_std=0.07,
     other_skill_mean=0.25, other_skill_std=0.06,
 )
-GENERALIST = dict(
+BROAD = dict(
     peak_skill_mean=0.55, peak_skill_std=0.08,
     other_skill_mean=0.33, other_skill_std=0.08,
 )
@@ -141,8 +141,8 @@ def run_sensitivity() -> pd.DataFrame:
         }
         for level_name, val in levels.items():
             model_kw = {**BASE, param_name: val}
-            for scenario_label, scenario_kw in [('spec', SPECIALIST),
-                                                 ('gen',  GENERALIST)]:
+            for scenario_label, scenario_kw in [('spec', PEAKED),
+                                                 ('gen',  BROAD)]:
                 for i in range(N_RUNS):
                     tasks.append((scenario_kw, model_kw, SEED_BASE + i))
                     task_meta.append((param_name, level_name, round(val, 6),

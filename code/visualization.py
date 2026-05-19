@@ -11,8 +11,8 @@ IMG_DIR_DEBUG = IMG_DIR / "debug"
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 IMG_DIR_DEBUG.mkdir(parents=True, exist_ok=True)
 
-SPEC_COL = "#e05c5c"
-GEN_COL  = "#4a90d9"
+PEAKED_COL = "#e05c5c"
+BROAD_COL  = "#4a90d9"
 
 
 # ── internal helpers ──────────────────────────────────────────────────────────
@@ -63,24 +63,24 @@ def plot_scenarios(df_low, df_high, adf_low, adf_high, steps: int = 300):
     Four-panel figure mapping directly to the four research claims (H1–H4).
 
       H1 (top-left)  : Replication failure rate over time
-                        Specialists should show persistently higher failure rates.
+                        Peaked-profile researchers should show persistently higher failure rates.
       H2 (top-right) : Domain concentration (Gini) over time
-                        Specialists should concentrate publications in fewer domains.
+                        Peaked-profile researchers should concentrate publications in fewer domains.
       H3 (bot-left)  : Average researcher reputation over time
-                        Generalists should accumulate more reputation (broader success).
+                        Broad-profile researchers should accumulate more reputation (broader success).
       H4 (bot-right) : Cumulative reputation lost to debunking over time
-                        Specialists should be less stable — debunking one domain
+                        Peaked-profile researchers should be less stable — debunking one domain
                         hits them harder because their reputation is concentrated.
     """
     fig, axes = plt.subplots(2, 2, figsize=(13, 8), constrained_layout=True)
-    fig.suptitle("Specialist vs Generalist — Four Research Claims (H1–H4)", fontsize=11)
+    fig.suptitle("Peaked vs Broad — Four Research Claims (H1–H4)", fontsize=11)
 
     # H1: replication failure rate over time
     ax = axes[0, 0]
     ax.plot(df_low.index,  df_low["Replication Failure Rate"],
-            color=SPEC_COL, linewidth=2.2, label="Specialist")
+            color=PEAKED_COL, linewidth=2.2, label="Peaked")
     ax.plot(df_high.index, df_high["Replication Failure Rate"],
-            color=GEN_COL,  linewidth=2.2, label="Generalist")
+            color=BROAD_COL,  linewidth=2.2, label="Broad")
     ax.axhline(0.60, color="black", linewidth=1.0, linestyle=":",
                label="OSC 2015 (60%)")
     ax.set_title("H1 — Replication Failure Rate", fontsize=9)
@@ -92,8 +92,8 @@ def plot_scenarios(df_low, df_high, adf_low, adf_high, steps: int = 300):
 
     # H2: Gini coefficient over time
     ax = axes[0, 1]
-    for df_m, color, lbl in [(df_low, SPEC_COL, "Specialist"),
-                              (df_high, GEN_COL,  "Generalist")]:
+    for df_m, color, lbl in [(df_low, PEAKED_COL, "Peaked"),
+                              (df_high, BROAD_COL,  "Broad")]:
         ginis = [_gini(list(row.values())) for row in df_m["Models per Domain"]]
         ax.plot(df_m.index, ginis, color=color, linewidth=2.2, label=lbl)
     ax.set_title("H2 — Domain Concentration  (Gini coefficient)", fontsize=9)
@@ -106,9 +106,9 @@ def plot_scenarios(df_low, df_high, adf_low, adf_high, steps: int = 300):
     # H3: average researcher reputation over time
     ax = axes[1, 0]
     ax.plot(df_low.index,  df_low["Avg Reputation"],
-            color=SPEC_COL, linewidth=2.2, label="Specialist")
+            color=PEAKED_COL, linewidth=2.2, label="Peaked")
     ax.plot(df_high.index, df_high["Avg Reputation"],
-            color=GEN_COL,  linewidth=2.2, label="Generalist")
+            color=BROAD_COL,  linewidth=2.2, label="Broad")
     ax.set_title("H3 — Average Researcher Reputation", fontsize=9)
     ax.set_xlabel("Time step")
     ax.set_ylabel("Mean reputation")
@@ -118,9 +118,9 @@ def plot_scenarios(df_low, df_high, adf_low, adf_high, steps: int = 300):
     # H4: cumulative reputation lost to debunking over time
     ax = axes[1, 1]
     ax.plot(df_low.index,  df_low["Avg Reputation Lost to Debunk"],
-            color=SPEC_COL, linewidth=2.2, label="Specialist")
+            color=PEAKED_COL, linewidth=2.2, label="Peaked")
     ax.plot(df_high.index, df_high["Avg Reputation Lost to Debunk"],
-            color=GEN_COL,  linewidth=2.2, label="Generalist")
+            color=BROAD_COL,  linewidth=2.2, label="Broad")
     ax.set_title("H4 — Avg Reputation Lost to Debunking\n"
                  "(higher = less stable under scrutiny)", fontsize=9)
     ax.set_xlabel("Time step")
@@ -142,7 +142,7 @@ def plot_knowledge_quality(df_low, df_high):
       P2 (top-right) : Average bias gap (reported − actual) over time.
                         Should stabilise near 0.10 (the mean inflation drawn at spawn).
       P3 (bot-left)  : Top-5 model salience band — era dynamics and debunk events.
-      P4 (bot-right) : Reputation variance over time — specialists should show higher
+      P4 (bot-right) : Reputation variance over time — peaked-profile researchers should show higher
                         variance as debunking concentrates gains/losses in one domain.
     """
     fig, axes = plt.subplots(2, 2, figsize=(13, 8), constrained_layout=True)
@@ -150,8 +150,8 @@ def plot_knowledge_quality(df_low, df_high):
 
     # P1: actual vs reported truthfulness per scenario
     ax = axes[0, 0]
-    for df_m, color, lbl in [(df_low, SPEC_COL, "Specialist"),
-                              (df_high, GEN_COL,  "Generalist")]:
+    for df_m, color, lbl in [(df_low, PEAKED_COL, "Peaked"),
+                              (df_high, BROAD_COL,  "Broad")]:
         mean_actual = [float(np.mean(list(row.values())))
                        for row in df_m["Best Actual Truthfulness per Domain"]]
         mean_rep    = [float(np.mean(list(row.values())))
@@ -171,9 +171,9 @@ def plot_knowledge_quality(df_low, df_high):
     # P2: avg bias gap (reported − actual) over time
     ax = axes[0, 1]
     ax.plot(df_low.index,  df_low["Avg Bias Gap"],
-            color=SPEC_COL, linewidth=2.2, label="Specialist")
+            color=PEAKED_COL, linewidth=2.2, label="Peaked")
     ax.plot(df_high.index, df_high["Avg Bias Gap"],
-            color=GEN_COL,  linewidth=2.2, label="Generalist")
+            color=BROAD_COL,  linewidth=2.2, label="Broad")
     ax.axhline(0.10, color="black", linewidth=1.0, linestyle=":",
                label="Expected inflation (μ=0.10)")
     ax.set_title("Publication Bias Gap  (reported − actual)\n"
@@ -186,8 +186,8 @@ def plot_knowledge_quality(df_low, df_high):
 
     # P3: salience band (mean + min) of top-5 models
     ax = axes[1, 0]
-    for df_m, color, lbl in [(df_low, SPEC_COL, "Specialist"),
-                              (df_high, GEN_COL,  "Generalist")]:
+    for df_m, color, lbl in [(df_low, PEAKED_COL, "Peaked"),
+                              (df_high, BROAD_COL,  "Broad")]:
         mean = df_m["Avg Top5 Salience"]
         mn   = df_m["Min Top5 Salience"]
         ax.plot(df_m.index, mean, color=color, linewidth=2.0, label=f"{lbl} mean")
@@ -205,11 +205,11 @@ def plot_knowledge_quality(df_low, df_high):
     # P4: reputation variance over time (higher = more inequality / fragility)
     ax = axes[1, 1]
     ax.plot(df_low.index,  df_low["Reputation Variance"],
-            color=SPEC_COL, linewidth=2.2, label="Specialist")
+            color=PEAKED_COL, linewidth=2.2, label="Peaked")
     ax.plot(df_high.index, df_high["Reputation Variance"],
-            color=GEN_COL,  linewidth=2.2, label="Generalist")
+            color=BROAD_COL,  linewidth=2.2, label="Broad")
     ax.set_title("Reputation Variance  (higher = more inequality)\n"
-                 "Specialists expected to show more fragile, concentrated reputation", fontsize=9)
+                 "Peaked-profile researchers expected to show more fragile, concentrated reputation", fontsize=9)
     ax.set_xlabel("Time step")
     ax.set_ylabel("Variance of reputation across researchers")
     ax.legend(fontsize=8)
@@ -236,9 +236,9 @@ def plot_action_over_time(adf_low, adf_high):
 
     mode_cols   = ["ExploitSteps", "TrainingSteps", "ExploreSteps", "DebunkSteps"]
     mode_labels = ["Exploit", "Train", "Explore", "Debunk"]
-    mode_colors = [GEN_COL, SPEC_COL, "#5cb85c", "#f0ad4e"]
+    mode_colors = [BROAD_COL, PEAKED_COL, "#5cb85c", "#f0ad4e"]
 
-    for ax, adf, lbl in [(ax1, adf_low, "Specialist"), (ax2, adf_high, "Generalist")]:
+    for ax, adf, lbl in [(ax1, adf_low, "Peaked"), (ax2, adf_high, "Broad")]:
         fracs   = _action_fractions_over_time(adf)
         fracs   = fracs.iloc[BURN_IN:]
         steps   = fracs.index
@@ -279,7 +279,7 @@ def plot_agent_skills(adf_low, adf_high, n_domains: int):
             traj[i] = np.array(step_df["DomainSkills"].tolist()).mean(axis=0)
         return traj
 
-    for ax, adf, lbl in [(ax1, adf_low, "Specialist"), (ax2, adf_high, "Generalist")]:
+    for ax, adf, lbl in [(ax1, adf_low, "Peaked"), (ax2, adf_high, "Broad")]:
         traj = _trajectories(adf)
         for d in range(n_domains):
             ax.plot(all_steps, traj[:, d],
@@ -447,8 +447,8 @@ def plot_cluster_animation(adf_low, adf_high, n_labs: int,
         plt.close(fig)
         print(f"Saved → {out_path}")
 
-    _animate(adf_low,  "Specialist", "cluster_anim_specialist.gif")
-    _animate(adf_high, "Generalist", "cluster_anim_generalist.gif")
+    _animate(adf_low,  "Peaked", "cluster_anim_peaked.gif")
+    _animate(adf_high, "Broad", "cluster_anim_broad.gif")
 
 
 # ── debug figures (saved to meta/img/debug/) ─────────────────────────────────
@@ -462,7 +462,7 @@ def plot_lab_history(adf_low, adf_high, n_domains: int):
     cmap_domain = plt.get_cmap("tab20", n_domains)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), constrained_layout=True)
 
-    for ax, adf, lbl in [(ax1, adf_low, "Specialist"), (ax2, adf_high, "Generalist")]:
+    for ax, adf, lbl in [(ax1, adf_low, "Peaked"), (ax2, adf_high, "Broad")]:
         final_step = adf.index.get_level_values("Step").max()
         final_df   = adf.xs(final_step, level="Step")
         all_agents = sorted(final_df.index.tolist(),

@@ -4,7 +4,7 @@ make_temporal_figure.py
 
 Produces a two-panel figure showing how the H1 and H2 metrics emerge over
 time, with mean trajectories and 95% confidence bands across seeds for all
-three scenarios (SPEC, GEN, UNIFORM).
+three scenarios (PEAKED, BROAD, FLAT).
 
 Panel A: cumulative replication failure rate over 300 steps
 Panel B: Gini coefficient of per-domain publication counts over 300 steps
@@ -41,21 +41,21 @@ matplotlib.rcParams.update({
 STEPS = 300
 SEEDS = list(range(30))
 
-SPEC = dict(peak_skill_mean=0.55, peak_skill_std=0.07,
+PEAKED = dict(peak_skill_mean=0.55, peak_skill_std=0.07,
             other_skill_mean=0.25, other_skill_std=0.06,
             selection_interval=40)
-GEN  = dict(peak_skill_mean=0.55, peak_skill_std=0.08,
+BROAD  = dict(peak_skill_mean=0.55, peak_skill_std=0.08,
             other_skill_mean=0.33, other_skill_std=0.08,
             selection_interval=40)
-UNIFORM = dict(peak_skill_mean=0.40, peak_skill_std=0.02,
+FLAT = dict(peak_skill_mean=0.40, peak_skill_std=0.02,
                other_skill_mean=0.40, other_skill_std=0.02,
                selection_interval=40)
-SCENARIOS = {"SPEC": SPEC, "GEN": GEN, "UNIFORM": UNIFORM}
+SCENARIOS = {"PEAKED": PEAKED, "BROAD": BROAD, "FLAT": FLAT}
 
 COLORS = {
-    "SPEC":    "#2563EB",
-    "GEN":     "#059669",
-    "UNIFORM": "#9333EA",
+    "PEAKED":    "#2563EB",
+    "BROAD":     "#059669",
+    "FLAT": "#9333EA",
 }
 
 
@@ -122,7 +122,7 @@ def main():
 
     # Panel A: failure rate
     ax_a = axes[0]
-    for lbl in ("SPEC", "GEN", "UNIFORM"):
+    for lbl in ("PEAKED", "BROAD", "FLAT"):
         arr = fail_arrays[lbl]
         mu  = arr.mean(axis=0)
         # 95% CI via 2 × SE
@@ -130,7 +130,7 @@ def main():
         ax_a.fill_between(steps, mu - 1.96 * se, mu + 1.96 * se,
                            color=COLORS[lbl], alpha=0.18, linewidth=0)
         ax_a.plot(steps, mu, color=COLORS[lbl], lw=1.7,
-                   label=lbl.title() if lbl != "UNIFORM" else "Uniform (control)")
+                   label=lbl.title() if lbl != "FLAT" else "Uniform (control)")
     ax_a.set_xlabel("Simulation step")
     ax_a.set_ylabel("Cumulative replication failure rate")
     ax_a.set_title("A.  H1 — failure rate over time", pad=8, fontsize=11)
@@ -141,14 +141,14 @@ def main():
 
     # Panel B: Gini
     ax_b = axes[1]
-    for lbl in ("SPEC", "GEN", "UNIFORM"):
+    for lbl in ("PEAKED", "BROAD", "FLAT"):
         arr = gini_arrays[lbl]
         mu  = arr.mean(axis=0)
         se  = arr.std(axis=0, ddof=1) / np.sqrt(len(SEEDS))
         ax_b.fill_between(steps, mu - 1.96 * se, mu + 1.96 * se,
                            color=COLORS[lbl], alpha=0.18, linewidth=0)
         ax_b.plot(steps, mu, color=COLORS[lbl], lw=1.7,
-                   label=lbl.title() if lbl != "UNIFORM" else "Uniform (control)")
+                   label=lbl.title() if lbl != "FLAT" else "Uniform (control)")
     ax_b.set_xlabel("Simulation step")
     ax_b.set_ylabel("Gini of per-domain publication counts")
     ax_b.set_title("B.  H2 — domain concentration over time", pad=8, fontsize=11)

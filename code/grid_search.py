@@ -1,7 +1,7 @@
 """
 grid_search.py — calibration grid for train_threshold × skill_gain_attempt.
 
-Goal: find parameter combinations where the specialist scenario produces a
+Goal: find parameter combinations where the peaked scenario produces a
 steady-state replication failure rate close to the OSC (2015) benchmark of ~60%.
 All runs are parallelized across available CPU cores.
 
@@ -43,7 +43,7 @@ BASE_MODEL = dict(
     cap_growth_rate=0.005,
     mutation_std=0.04,
 )
-SPECIALIST = dict(
+PEAKED = dict(
     peak_skill_mean=0.55, peak_skill_std=0.07,
     other_skill_mean=0.25, other_skill_std=0.06,
 )
@@ -60,7 +60,7 @@ def _worker(task: tuple) -> float:
     from world import ScienceWorld
     tt, sga, seed = task
     world = ScienceWorld(
-        **SPECIALIST,
+        **PEAKED,
         train_threshold=tt,
         skill_gain_attempt=sga,
         **BASE_MODEL,
@@ -160,7 +160,7 @@ def plot_heatmap(df: pd.DataFrame):
     ax.set_xlabel("skill_gain_attempt")
     ax.set_ylabel("train_threshold")
     ax.set_title(
-        f"Replication failure rate — specialist scenario\n"
+        f"Replication failure rate — peaked scenario\n"
         f"Bold/outlined = target zone ({TARGET_LOW:.0%}–{TARGET_HIGH:.0%},  OSC 2015 ≈ 60%)"
     )
 

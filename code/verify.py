@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 STEPS = 300
 SEEDS = [0, 1, 2]
 
-SPEC = dict(peak_skill_mean=0.55, peak_skill_std=0.07, other_skill_mean=0.25, other_skill_std=0.06, selection_interval=40)
-GEN  = dict(peak_skill_mean=0.55, peak_skill_std=0.08, other_skill_mean=0.33, other_skill_std=0.08, selection_interval=40)
+PEAKED = dict(peak_skill_mean=0.55, peak_skill_std=0.07, other_skill_mean=0.25, other_skill_std=0.06, selection_interval=40)
+BROAD  = dict(peak_skill_mean=0.55, peak_skill_std=0.08, other_skill_mean=0.33, other_skill_std=0.08, selection_interval=40)
 
 TT  = 0.30
 SGA = 0.06
@@ -27,7 +27,7 @@ def gini(vals):
 def _worker(task):
     label, seed = task
     from world import ScienceWorld
-    scenario = SPEC if label == 'SPEC' else GEN
+    scenario = PEAKED if label == 'PEAKED' else BROAD
     w = ScienceWorld(rng=seed, train_threshold=TT, skill_gain_attempt=SGA, **scenario)
     phase = {f'{p}_{a}': 0 for p in ('e','m','l') for a in ('expt','expl','train')}
     for step in range(STEPS):
@@ -48,7 +48,7 @@ def _worker(task):
 
 
 if __name__ == "__main__":
-    tasks = [(label, seed) for label in ('SPEC', 'GEN') for seed in SEEDS]
+    tasks = [(label, seed) for label in ('PEAKED', 'BROAD') for seed in SEEDS]
     with Pool() as pool:
         results = pool.map(_worker, tasks)
 

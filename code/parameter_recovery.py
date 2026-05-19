@@ -6,7 +6,7 @@ Two methodological additions to the main experiment:
 
 1. PARAMETER RECOVERY (Tier 3.1):
    Sweeps the manipulated parameter `other_skill_mean` over a grid of values
-   spanning the SPEC and GEN conditions plus extrapolations, with 15 seeds
+   spanning the PEAKED and BROAD conditions plus extrapolations, with 15 seeds
    per value. Asks: from the simulation outcome metrics alone (fail_rate,
    per-domain Gini, action fractions, reputation), can the underlying
    parameter be recovered? This tests whether the simulated outcomes carry
@@ -38,10 +38,10 @@ sys.path.insert(0, HERE)
 STEPS = 300
 SEEDS = list(range(15))     # 15 seeds × 6 values × ≈300s = ≈10 min on multi-core
 
-# Sweep grid: spans SPEC (.25), GEN (.33), and extrapolates both directions.
+# Sweep grid: spans PEAKED (.25), BROAD (.33), and extrapolates both directions.
 OTHER_SKILL_MEAN_GRID = [0.20, 0.25, 0.30, 0.33, 0.38, 0.43]
 
-# All other parameters fixed to GEN-style baseline; we manipulate one variable.
+# All other parameters fixed to BROAD-style baseline; we manipulate one variable.
 FIXED = dict(
     peak_skill_mean=0.55,
     peak_skill_std=0.07,

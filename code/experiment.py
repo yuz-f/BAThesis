@@ -1,16 +1,16 @@
 """
 30-seed confirmatory experiment.
 
-MODEL SPECIFICATION — 2026-05-07  (v3: epistemic landscape, +UNIFORM control)
-  Scenarios    : SPEC    (peak_skill_mean=0.55, peak_skill_std=0.07,
+MODEL SPECIFICATION — 2026-05-07  (v3: epistemic landscape, +FLAT control)
+  Scenarios    : PEAKED    (peak_skill_mean=0.55, peak_skill_std=0.07,
                           other_skill_mean=0.25, other_skill_std=0.06)
-                 GEN     (peak_skill_mean=0.55, peak_skill_std=0.08,
+                 BROAD     (peak_skill_mean=0.55, peak_skill_std=0.08,
                           other_skill_mean=0.33, other_skill_std=0.08)
-                 UNIFORM (peak_skill_mean=0.28, peak_skill_std=0.02,
+                 FLAT (peak_skill_mean=0.28, peak_skill_std=0.02,
                           other_skill_mean=0.28, other_skill_std=0.02) — control:
                           all researchers have near-identical flat profiles
-                          at the SPEC per-researcher mean (0.28), so the only
-                          difference vs. SPEC is the shape of the skill
+                          at the PEAKED per-researcher mean (0.28), so the only
+                          difference vs. PEAKED is the shape of the skill
                           distribution. Tests whether H1/H2 effects require
                           heterogeneity once mean skill is held constant.
   Shared params: selection_interval=40, n_labs=10, researchers_per_lab=5,
@@ -57,26 +57,26 @@ sys.path.insert(0, os.path.dirname(__file__))
 STEPS  = 300
 SEEDS  = list(range(30))
 
-SPEC = dict(
+PEAKED = dict(
     peak_skill_mean=0.55, peak_skill_std=0.07,
     other_skill_mean=0.25, other_skill_std=0.06,
     selection_interval=40,
 )
-GEN = dict(
+BROAD = dict(
     peak_skill_mean=0.55, peak_skill_std=0.08,
     other_skill_mean=0.33, other_skill_std=0.08,
     selection_interval=40,
 )
-# Flat scenario — matched to SPEC's per-researcher mean skill of 0.28
+# Flat scenario — matched to PEAKED's per-researcher mean skill of 0.28
 # (= (0.55 + 9·0.25)/10). This removes the mean-skill confound: any
-# H1/H2 difference between SPEC and Flat is then attributable to the
+# H1/H2 difference between PEAKED and Flat is then attributable to the
 # *shape* of the skill distribution, not its overall magnitude.
-UNIFORM = dict(
+FLAT = dict(
     peak_skill_mean=0.28, peak_skill_std=0.02,
     other_skill_mean=0.28, other_skill_std=0.02,
     selection_interval=40,
 )
-SCENARIOS = {"SPEC": SPEC, "GEN": GEN, "UNIFORM": UNIFORM}
+SCENARIOS = {"PEAKED": PEAKED, "BROAD": BROAD, "FLAT": FLAT}
 
 SHARED = dict(
     train_threshold=0.30,
@@ -198,7 +198,7 @@ def _report(label: str, metric: str, vals: list[float]):
 
 
 if __name__ == "__main__":
-    LABELS = ("SPEC", "GEN", "UNIFORM")
+    LABELS = ("PEAKED", "BROAD", "FLAT")
     tasks = [(label, seed)
              for label in LABELS
              for seed in SEEDS]
@@ -270,11 +270,11 @@ if __name__ == "__main__":
             print(f"    Mann-Whitney U={u_stat:.1f}  p={p_val:.4f} {sig}  Cohen's d={d:.3f}")
             print()
 
-    print("=" * 70); print("INFERENTIAL STATISTICS  (SPEC vs GEN)"); print("=" * 70)
-    _print_pair("SPEC", "GEN")
+    print("=" * 70); print("INFERENTIAL STATISTICS  (PEAKED vs BROAD)"); print("=" * 70)
+    _print_pair("PEAKED", "BROAD")
 
-    print("=" * 70); print("CONTROL CHECK  (SPEC vs UNIFORM)  — H1/H2 should be amplified"); print("=" * 70)
-    _print_pair("SPEC", "UNIFORM")
+    print("=" * 70); print("CONTROL CHECK  (PEAKED vs FLAT)  — H1/H2 should be amplified"); print("=" * 70)
+    _print_pair("PEAKED", "FLAT")
 
-    print("=" * 70); print("CONTROL CHECK  (GEN vs UNIFORM)  — H1/H2 should attenuate or vanish"); print("=" * 70)
-    _print_pair("GEN", "UNIFORM")
+    print("=" * 70); print("CONTROL CHECK  (BROAD vs FLAT)  — H1/H2 should attenuate or vanish"); print("=" * 70)
+    _print_pair("BROAD", "FLAT")

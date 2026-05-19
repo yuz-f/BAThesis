@@ -6,8 +6,8 @@ Figure for the layer-decomposition ablation (Tier 4 / addresses ChatGPT
 critique cluster A: tautology, landscape-as-meta-driver, complexity attribution).
 
 Two-panel figure:
-  Panel A: H1 effect size (Cohen's d, SPEC vs GEN failure rate) at each layer
-  Panel B: H2 effect size (Cohen's d, SPEC vs GEN per-domain Gini) at each layer
+  Panel A: H1 effect size (Cohen's d, PEAKED vs BROAD failure rate) at each layer
+  Panel B: H2 effect size (Cohen's d, PEAKED vs BROAD per-domain Gini) at each layer
 
 Layers: L1 (base dynamics), L2 (+ realism), L3 (full v3 with landscape)
 
@@ -46,8 +46,8 @@ LAYER_LABELS = {
     "L2_realism": "L2\n+ Realism\n(no landscape)",
     "L3_full":    "L3\nFull v3\n(landscape on)",
 }
-SPEC_COL = "#2563EB"
-GEN_COL  = "#059669"
+PEAKED_COL = "#2563EB"
+BROAD_COL  = "#059669"
 
 
 def cohen_d(a, b):
@@ -63,8 +63,8 @@ def main():
 
     summary_rows = []
     for layer in LAYER_ORDER:
-        spec = df[(df.layer == layer) & (df.scenario == "SPEC")]
-        gen  = df[(df.layer == layer) & (df.scenario == "GEN")]
+        spec = df[(df.layer == layer) & (df.scenario == "PEAKED")]
+        gen  = df[(df.layer == layer) & (df.scenario == "BROAD")]
 
         for metric in ["fail_rate", "domain_gini", "researcher_gini", "mean_reputation"]:
             d_val = cohen_d(spec[metric].values, gen[metric].values)
@@ -90,23 +90,23 @@ def main():
     # ── plot ────────────────────────────────────────────────────────────────
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
 
-    # Panel A: H1 (failure rate) — layer-wise SPEC and GEN means with CI
+    # Panel A: H1 (failure rate) — layer-wise PEAKED and BROAD means with CI
     ax_a = axes[0]
     xs   = np.arange(len(LAYER_ORDER))
-    spec_means = [df[(df.layer == L) & (df.scenario == "SPEC")]["fail_rate"].mean()
+    spec_means = [df[(df.layer == L) & (df.scenario == "PEAKED")]["fail_rate"].mean()
                   for L in LAYER_ORDER]
-    gen_means  = [df[(df.layer == L) & (df.scenario == "GEN")]["fail_rate"].mean()
+    gen_means  = [df[(df.layer == L) & (df.scenario == "BROAD")]["fail_rate"].mean()
                   for L in LAYER_ORDER]
-    spec_se = [df[(df.layer == L) & (df.scenario == "SPEC")]["fail_rate"].std(ddof=1) / np.sqrt(15)
+    spec_se = [df[(df.layer == L) & (df.scenario == "PEAKED")]["fail_rate"].std(ddof=1) / np.sqrt(15)
                for L in LAYER_ORDER]
-    gen_se  = [df[(df.layer == L) & (df.scenario == "GEN")]["fail_rate"].std(ddof=1) / np.sqrt(15)
+    gen_se  = [df[(df.layer == L) & (df.scenario == "BROAD")]["fail_rate"].std(ddof=1) / np.sqrt(15)
                for L in LAYER_ORDER]
 
     w = 0.32
     ax_a.bar(xs - w/2, spec_means, w, yerr=[1.96*x for x in spec_se],
-             color=SPEC_COL, alpha=0.78, capsize=3, label="Specialist", edgecolor="white")
+             color=PEAKED_COL, alpha=0.78, capsize=3, label="Peaked", edgecolor="white")
     ax_a.bar(xs + w/2, gen_means, w, yerr=[1.96*x for x in gen_se],
-             color=GEN_COL, alpha=0.78, capsize=3, label="Generalist", edgecolor="white")
+             color=BROAD_COL, alpha=0.78, capsize=3, label="Broad", edgecolor="white")
 
     # annotate effect size above each pair
     for i, L in enumerate(LAYER_ORDER):
@@ -129,19 +129,19 @@ def main():
 
     # Panel B: H2 (domain Gini)
     ax_b = axes[1]
-    spec_means_g = [df[(df.layer == L) & (df.scenario == "SPEC")]["domain_gini"].mean()
+    spec_means_g = [df[(df.layer == L) & (df.scenario == "PEAKED")]["domain_gini"].mean()
                     for L in LAYER_ORDER]
-    gen_means_g  = [df[(df.layer == L) & (df.scenario == "GEN")]["domain_gini"].mean()
+    gen_means_g  = [df[(df.layer == L) & (df.scenario == "BROAD")]["domain_gini"].mean()
                     for L in LAYER_ORDER]
-    spec_se_g = [df[(df.layer == L) & (df.scenario == "SPEC")]["domain_gini"].std(ddof=1) / np.sqrt(15)
+    spec_se_g = [df[(df.layer == L) & (df.scenario == "PEAKED")]["domain_gini"].std(ddof=1) / np.sqrt(15)
                  for L in LAYER_ORDER]
-    gen_se_g  = [df[(df.layer == L) & (df.scenario == "GEN")]["domain_gini"].std(ddof=1) / np.sqrt(15)
+    gen_se_g  = [df[(df.layer == L) & (df.scenario == "BROAD")]["domain_gini"].std(ddof=1) / np.sqrt(15)
                  for L in LAYER_ORDER]
 
     ax_b.bar(xs - w/2, spec_means_g, w, yerr=[1.96*x for x in spec_se_g],
-             color=SPEC_COL, alpha=0.78, capsize=3, label="Specialist", edgecolor="white")
+             color=PEAKED_COL, alpha=0.78, capsize=3, label="Peaked", edgecolor="white")
     ax_b.bar(xs + w/2, gen_means_g, w, yerr=[1.96*x for x in gen_se_g],
-             color=GEN_COL, alpha=0.78, capsize=3, label="Generalist", edgecolor="white")
+             color=BROAD_COL, alpha=0.78, capsize=3, label="Broad", edgecolor="white")
 
     for i, L in enumerate(LAYER_ORDER):
         d  = summary[(summary.layer == L) & (summary.metric == "domain_gini")]["cohen_d"].iloc[0]

@@ -2,7 +2,7 @@
 ablation.py — layer-decomposition ablation study (Tier 4 / addresses ChatGPT
 critique cluster A: tautology, landscape-as-meta-driver, complexity attribution).
 
-Three nested model layers are crossed with the SPEC and GEN scenarios:
+Three nested model layers are crossed with the PEAKED and BROAD scenarios:
 
   L1 — Base dynamics only:
        enable_landscape=False, enable_realism=False
@@ -16,7 +16,7 @@ Three nested model layers are crossed with the SPEC and GEN scenarios:
        enable_landscape=True,  enable_realism=True
 
 For each (layer, scenario, seed) we compute the standard outcome metrics.
-Aggregating across seeds gives the SPEC vs GEN effect size *per layer*,
+Aggregating across seeds gives the PEAKED vs BROAD effect size *per layer*,
 which quantifies how much each architectural layer contributes to the
 H1 and H2 magnitudes.
 
@@ -37,9 +37,9 @@ STEPS = 300
 SEEDS = list(range(15))
 
 SCENARIOS = {
-    "SPEC": dict(peak_skill_mean=0.55, peak_skill_std=0.07,
+    "PEAKED": dict(peak_skill_mean=0.55, peak_skill_std=0.07,
                  other_skill_mean=0.25, other_skill_std=0.06),
-    "GEN":  dict(peak_skill_mean=0.55, peak_skill_std=0.08,
+    "BROAD":  dict(peak_skill_mean=0.55, peak_skill_std=0.08,
                  other_skill_mean=0.33, other_skill_std=0.08),
 }
 

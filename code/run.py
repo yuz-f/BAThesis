@@ -6,10 +6,10 @@ Run from the BAThesis/code/ folder:
 
 Scenarios
 ---------
-LOW  (specialist):  one pronounced peak domain, weak secondary skills (μ≈0.25)
+LOW  (peaked):  one pronounced peak domain, weak secondary skills (μ≈0.25)
                     → researchers concentrate in their niche; domain monopolies form
 
-HIGH (generalist):  same peak domain, elevated secondary baseline (μ≈0.33)
+HIGH (broad):  same peak domain, elevated secondary baseline (μ≈0.33)
                     → researchers can engage profitably across multiple domains
 """
 
@@ -21,14 +21,14 @@ from visualization import (
 
 STEPS = 300
 
-# specialist scenario — one clear but moderate peak, weaker elsewhere
+# peaked scenario — one clear but moderate peak, weaker elsewhere
 # peak ≈ 0.55, other ≈ 0.25 → ratio ~2.2×, gap ~0.30
 LOW_PEAK_MEAN  = 0.55
 LOW_PEAK_STD   = 0.07
 LOW_OTHER_MEAN = 0.25
 LOW_OTHER_STD  = 0.06
 
-# generalist scenario — same moderate peak, broader floor with more overlap
+# broad scenario — same moderate peak, broader floor with more overlap
 # peak ≈ 0.55, other ≈ 0.33 → ratio ~1.7×, gap ~0.22
 HIGH_PEAK_MEAN  = 0.55
 HIGH_PEAK_STD   = 0.08
@@ -79,8 +79,8 @@ if __name__ == "__main__":
     world_high, df_high, adf_high = run_scenario(
         HIGH_PEAK_MEAN, HIGH_PEAK_STD, HIGH_OTHER_MEAN, HIGH_OTHER_STD, rng=rng)
 
-    print_domain_diagnostics(world_low,  "Specialist (μ_other=0.25)")
-    print_domain_diagnostics(world_high, "Generalist (μ_other=0.33)")
+    print_domain_diagnostics(world_low,  "Peaked (μ_other=0.25)")
+    print_domain_diagnostics(world_high, "Broad (μ_other=0.33)")
 
     n_domains = world_low.n_domains
     n_labs    = world_low.n_labs

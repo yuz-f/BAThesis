@@ -28,8 +28,8 @@ matplotlib.rcParams.update({
     "savefig.pad_inches": 0.05,
 })
 
-SPEC_COL = "#2563EB"   # blue  – Specialist
-GEN_COL  = "#059669"   # green – Generalist
+PEAKED_COL = "#2563EB"   # blue  – Peaked
+BROAD_COL  = "#059669"   # green – Broad
 ALPHA    = 0.55
 JITTER   = 0.08
 
@@ -37,8 +37,8 @@ JITTER   = 0.08
 here    = os.path.dirname(os.path.abspath(__file__))
 csv_path = os.path.join(here, "..", "meta", "experiment_results.csv")
 df = pd.read_csv(csv_path)
-spec = df[df.label == "SPEC"]
-gen  = df[df.label == "GEN"]
+spec = df[df.label == "PEAKED"]
+gen  = df[df.label == "BROAD"]
 
 img_dir = os.path.join(here, "..", "meta", "img")
 os.makedirs(img_dir, exist_ok=True)
@@ -125,10 +125,10 @@ for ax, col, hyp, ylabel, locator, ylo, yhi in panels:
     gv = gen[col].values
     subtitle, sig = compute_stats(sv, gv, hyp)
 
-    violin_half(ax, sv, 1, SPEC_COL, "left")
-    violin_half(ax, gv, 1, GEN_COL,  "right")
-    jitter_strip(ax, sv, 1, SPEC_COL, "left")
-    jitter_strip(ax, gv, 1, GEN_COL,  "right")
+    violin_half(ax, sv, 1, PEAKED_COL, "left")
+    violin_half(ax, gv, 1, BROAD_COL,  "right")
+    jitter_strip(ax, sv, 1, PEAKED_COL, "left")
+    jitter_strip(ax, gv, 1, BROAD_COL,  "right")
 
     top = max(sv.max(), gv.max())
     bracket_y = top + 0.012
@@ -145,8 +145,8 @@ for ax, col, hyp, ylabel, locator, ylo, yhi in panels:
     ax.yaxis.set_minor_locator(locator)
 
 # shared legend
-spec_patch = mpatches.Patch(color=SPEC_COL, alpha=0.75, label="Specialist")
-gen_patch  = mpatches.Patch(color=GEN_COL,  alpha=0.75, label="Generalist")
+spec_patch = mpatches.Patch(color=PEAKED_COL, alpha=0.75, label="Peaked")
+gen_patch  = mpatches.Patch(color=BROAD_COL,  alpha=0.75, label="Broad")
 fig.legend(handles=[spec_patch, gen_patch], loc="lower center",
            ncol=2, frameon=False, fontsize=9, bbox_to_anchor=(0.5, -0.04))
 
@@ -176,10 +176,10 @@ for ax, col, hyp, ylabel, locator, ylo, yhi in panels2:
     gv = gen[col].values
     subtitle, sig = compute_stats(sv, gv, hyp)
 
-    violin_half(ax, sv, 1, SPEC_COL, "left")
-    violin_half(ax, gv, 1, GEN_COL,  "right")
-    jitter_strip(ax, sv, 1, SPEC_COL, "left")
-    jitter_strip(ax, gv, 1, GEN_COL,  "right")
+    violin_half(ax, sv, 1, PEAKED_COL, "left")
+    violin_half(ax, gv, 1, BROAD_COL,  "right")
+    jitter_strip(ax, sv, 1, PEAKED_COL, "left")
+    jitter_strip(ax, gv, 1, BROAD_COL,  "right")
 
     # Place bracket at a fixed fraction of the visible panel range so the
     # significance label always sits inside the panel — independent of any

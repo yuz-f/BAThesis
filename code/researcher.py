@@ -503,6 +503,13 @@ class Researcher(mesa.Agent):
 
         if self.model.enable_type_b:
             # --- Type B: softmax over learned domain utility ---
+            # Explore-weight base: 0.6 matches the typical magnitude of the
+            # Type A explore weight (1.5 × skill_d × skill_bias_d ≈ 0.6 with
+            # typical skill ~0.4 and skill_bias ~1.0), so the explore vs
+            # exploit balance is calibrated, not over-inflated. Without this
+            # rescaling, Type B agents over-publish because no skill term
+            # dampens the base 1.5 constant — see smoke-test note in commit
+            # message.
             beta    = self.model.beta_rl
             u_mean  = float(self.domain_utility.mean())
             weights = []
@@ -510,7 +517,7 @@ class Researcher(mesa.Agent):
                 domain      = target if action == 'explore' else target.domain
                 util_weight = float(np.exp(beta * (self.domain_utility[domain] - u_mean)))
                 if action == 'explore':
-                    w = 1.5 * (1.0 + stage_boost) * util_weight
+                    w = 0.6 * (1.0 + stage_boost) * util_weight
                 else:
                     w = (target.salience + target.reported_truthfulness) * util_weight
                 weights.append(max(w, 1e-6))

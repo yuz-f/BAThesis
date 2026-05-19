@@ -80,14 +80,18 @@ Taken together, the findings reviewed above suggest that the replication crisis 
 
 The case for such frameworks is partly an argument from the more mature sciences. Physics, mathematics, and computer science share a structural feature that psychology largely lacks: a stock of explicit axioms, formal definitions, and standardised notational conventions that allow distant researchers to interpret one another's claims with minimal ambiguity. A theorem stated in the language of differential geometry travels between laboratories without semantic loss; a verbal construct like "self-control" or "implicit attitude" does not. @MuthukrishnaHenrich2019 argue that the absence of an overarching theoretical framework — comparable to evolutionary theory in biology or general relativity in physics — is itself a structural cause of the replication crisis, because without such a framework empirical findings cannot be evaluated as confirmatory or surprising relative to a shared body of expectations. @vanRooijBaggio2021 develop a complementary point: psychological science has prioritised the *empirical* cycle (testing effects) over the *theoretical* cycle (specifying explanations with the formal precision needed to determine what would count as a test in the first place), and recommend importing the levels-of-analysis methodology that has worked in cognitive science from its informatic roots.
 
-Computational modelling is the most mature candidate for such a framework in psychology and inherits its discipline directly from these older traditions. By demanding that theoretical commitments be expressed in code that runs, it forces the kind of definitional explicitness that verbal theory routinely defers — every assumption must be operationalised, every parameter named, every interaction between mechanisms specified at the level of execution [@GuestMartin2021]. It provides the quantitative precision that verbal theories lack, the mechanistic explicitness that enables genuine replication, and — as the work reviewed here demonstrates — the capacity to study the dynamics of scientific communities themselves as objects of inquiry. The point is not that psychology should imitate physics in subject matter, but that it can adopt a comparable standard for how theoretical claims are stated, compared, and accumulated.
+Computational modelling is the most mature candidate for such a framework in psychology and inherits its discipline directly from these older traditions. By demanding that theoretical commitments be expressed in code that runs, it forces the kind of definitional explicitness that verbal theory routinely defers — every assumption must be operationalised, every parameter named, every interaction between mechanisms specified at the level of execution [@GuestMartin2021]. It provides the quantitative precision that verbal theories lack, the mechanistic explicitness that enables genuine replication, and — as the work reviewed here demonstrates — the capacity to study the dynamics of scientific communities themselves as objects of inquiry.
+
+A useful side-effect of this explicitness is that *architectural tautologies* — places where a theoretical commitment is encoded directly into the model's structure rather than being tested against the model's dynamics — become visible. In a verbal theory, the claim "specialists tend to publish in their specialty" can travel through pages of discussion without anyone noticing that it has been assumed rather than demonstrated; in a formal model, the same claim appears as a specific equation (Equation 6 in this thesis, the skill-bias action-selection rule), and its contribution to the headline result can be quantified by replacing it with an alternative architecture (@sec-architecture). This is a feature of formal modelling, not a flaw of it: the same property that exposes the thesis to the tautology critique is what makes the critique answerable in the first place. Verbal theories accumulate hidden tautologies invisibly; formal models accumulate them visibly, and visibility is the first step toward addressing them.
+
+A related observation about psychology's theoretical landscape is that the field hosts many models and concepts addressing the same topic, frequently labelled as "complementary rather than mutually exclusive" — a framing that, while sometimes accurate, often functions as a hedge against falsification. Two theories that make the same predictions in the same conditions are not complementary; they are competing accounts whose discriminability has not been worked out. The proliferation of overlapping, weakly-discriminating theoretical accounts is itself a structural problem the theory crisis literature identifies as obstructing cumulative progress [@Eronen2021; @MeehlSummary1990]. Computational modelling does not solve this problem, but it does make it harder to hide: two formal models making the same predictions can be inspected side by side. The lack of mutual intelligibility across competing models in a discipline may also be one structural reason that *models become associated with the researcher who introduced them* rather than with the empirical regularities they describe — when the model itself is opaque, the credibility of its claims travels through its author rather than through independent inspection of the model's internals.
 
 ## Research Questions and Model Overview
 
 At its core, the model asks whether restricting researchers' cross-domain competence is, by itself, sufficient to generate higher replication failure and greater publication concentration under otherwise identical institutional conditions. The simulation model consists of three entity types — Labs, Researchers, and Scientific Models — interacting across ten research domains. Figure \ref{fig:model-diagram} provides a schematic overview of the model architecture and the causal relationships between its components.
 
 ```{=latex}
-\begin{figure}[ht]
+\begin{figure}[!htbp]
 \centering
 \resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[
@@ -244,7 +248,7 @@ Each Scientific Model carries a position on its domain's landscape, set at publi
 Figure \ref{fig:landscape} shows one domain's epistemic landscape together with the spatial distribution of models that the two scenarios produce by step 300. Panels A and B render the height function $h(x, y)$ as a 3D surface and a top-down heatmap, respectively, with the seed model marked. Panels C and D show, for the same domain, the position of every model published over 300 steps under each scenario, with currently-active models highlighted. The visual contrast between Panels C and D previews the quantitative results that follow: peaked-profile research programmes produce active literatures concentrated in the valley region (left), while generalist scenarios produce a more dispersed active literature. The publication-history background (faint dots) shows that both scenarios *publish* across the full theory-space, but only valley-positioned work *survives* as the actively cited literature.
 
 ```{=latex}
-\begin{figure}[ht]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{meta/img/landscape_figure.pdf}
 \captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}
@@ -496,7 +500,7 @@ The present model is evaluated against three criteria. First, *parsimony*: each 
 
 # Results
 
-Each scenario was run under 30 independent random seeds, producing 30 complete 300-step simulations per condition. All inferential tests are two-sided Mann-Whitney *U* tests, and effect sizes are reported as Cohen's *d*. The confirmatory threshold was set at $\alpha = .05$; the two pre-specified hypotheses (H1, H2) are evaluated at this level. The two exploratory hypotheses (H3, H4) are treated as hypothesis-generating and interpreted without formal correction.
+Each scenario was run under 30 independent random seeds, producing 30 complete 300-step simulations per condition (the confirmatory design is therefore $3 \times 30 \times 300$ — three scenarios, thirty seeds, three hundred steps — with the Peaked-vs-Broad contrast as the principal comparison and the Flat scenario reserved as a no-heterogeneity control). The Type A vs Type B comparison (@sec-architecture, @sec-type-b-results) expands this to a $2 \times 3 \times 30 \times 300$ design adding the architectural-mode dimension. All inferential tests are two-sided Mann-Whitney *U* tests, and effect sizes are reported as Cohen's *d*. The confirmatory threshold was set at $\alpha = .05$; the two pre-specified hypotheses (H1, H2) are evaluated at this level. The two exploratory hypotheses (H3, H4) are treated as hypothesis-generating and interpreted without formal correction.
 
 ## Confirmatory Analyses {#sec-confirmatory}
 
@@ -507,7 +511,7 @@ The simulated specialist failure rate (62%) is in the same range as the non-repl
 **H2: Domain concentration of publications.** The Gini coefficient of domain-level publication counts was .139 (95% CI [.131, .147]) in the Peaked scenario and .093 (95% CI [.086, .101]) in the Broad scenario. This difference was highly significant and very large: *U* = 848.0, *p* < .0001, *d* = 2.14. H2 is supported. The publication landscape in the Peaked scenario is substantially more concentrated: a few domains attract disproportionate publication activity while others are comparatively neglected. In the Broad scenario, the skill-bias term (Equation 6) provides only a weak pull toward any single domain, resulting in a more even distribution of research effort. The effect size for H2 is larger than for H1 (*d* = 2.14 vs. *d* = 0.78), indicating that domain concentration is the more reliable structural signature of skill specialisation.
 
 ```{=latex}
-\begin{figure}[ht]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{meta/img/results_confirmatory.pdf}
 \captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}
@@ -530,7 +534,7 @@ The end-state metrics reported above summarise 300-step trajectories. To show ho
 Both metrics differentiate the scenarios within the first 50–75 steps and remain stable for the remaining 225 steps. For H1, all three scenarios begin at high failure rates (≈ .68 at step 1) reflecting the small initial pool of replication attempts; failure rates then decrease as the literature accumulates and researchers find better-matched models. The Broad trajectory descends fastest and stabilises lowest; Peaked and Flat trajectories descend more slowly and stabilise above. For H2, the Gini coefficient starts high (≈ .20) reflecting the seed-only domain configuration in the early steps and then descends sharply as researchers begin publishing across all ten domains. By step 50 the three scenarios have separated into their final ordering — Peaked > Broad > Flat — and remain within their respective bands for the rest of the simulation.
 
 ```{=latex}
-\begin{figure}[ht]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{meta/img/temporal_figure.pdf}
 \captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}
@@ -553,7 +557,7 @@ The null result is interpretable in light of the action distribution data. Peake
 The structural mechanism underlying this directional pattern is informative even in the absence of significance. Peaked-profile researchers publish primarily in their peak domain, where their high skill produces models with above-average actual truthfulness. Equation 5 shows that debunk success probability scales with $(1 - \theta_{\text{actual}})$ and is further amplified for models in unstable theory-space positions: peaked-profile research programmes, which converge toward valley positions via gradient descent, benefit from both high truthfulness and high landscape stability, making their output doubly resistant to challenge. Broad-profile researchers publish across multiple domains at intermediate skill levels, producing models with lower average truthfulness that are exposed at less stable landscape positions. The introduction of the epistemic landscape appears to have increased variance in the debunking process — the instability boost raises debunking rates generally, compressing the proportional difference between scenarios and widening confidence intervals — which accounts for the loss of significance relative to the earlier model. The direction of the effect, however, is robust across both model versions.
 
 ```{=latex}
-\begin{figure}[ht]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{meta/img/results_exploratory.pdf}
 \captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}
@@ -602,7 +606,7 @@ Two further analyses test the model's methodological standing beyond the sensiti
 The undershoot is interpretable rather than disqualifying. Three structural features of the model bound how much inequality it can generate. First, the cull-and-mutate selection rule replaces the bottom 25% of researchers every 40 steps, removing the long left tail of zero-publication careers that contributes substantially to real-world Gini. Second, the simulation runs for 300 steps; real publication-Gini estimates aggregate over multi-decade career horizons during which cumulative-advantage dynamics have far longer to operate. Third, the model lacks the heavy-tailed mechanisms (extreme breakthrough cascades, persistent reputation accumulation without decay, network-driven citation amplification) that produce the most unequal publication distributions empirically. The model therefore produces *cumulative-advantage-flavored* inequality in a *bounded* form, and its 0.41 Gini reflects the shape of the dynamics that are present (skill-bias, salience, reputation) without the tail-driving mechanisms that are absent. A model that exactly reproduced 0.65 would be evidence of fitting; a model that reproduces qualitative inequality at a lower magnitude with an interpretable boundary is evidence of partial empirical correspondence with known limits.
 
 ```{=latex}
-\begin{figure}[ht]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{meta/img/validation_figure.pdf}
 \captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}
@@ -627,7 +631,7 @@ A central concern with computational models of this kind is that headline findin
 Each layer was used to compute the Peaked vs Broad effect size for the two confirmatory metrics. The results reframe what each result is doing in the model.
 
 ```{=latex}
-\begin{figure}[ht]
+\begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{meta/img/ablation_figure.pdf}
 \captionsetup{labelformat=apa, labelsep=newline, justification=raggedright}

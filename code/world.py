@@ -71,6 +71,9 @@ class ScienceWorld(mesa.Model):
                  misconduct_base_rate:  float = 0.05,
                  enable_landscape:      bool  = True,
                  enable_realism:        bool  = True,
+                 enable_type_b:         bool  = False,
+                 alpha_rl:              float = 0.10,
+                 beta_rl:               float = 3.0,
                  rng: int | None             = None):
         super().__init__(rng=rng)
         self.n_domains           = n_domains
@@ -99,6 +102,16 @@ class ScienceWorld(mesa.Model):
             # zero out the v2 mechanisms that have explicit strength parameters
             self.social_learn_strength = 0.0
             self.misconduct_base_rate  = 0.0
+
+        # Type B (best-model variant): replace the skill-bias action-selection rule
+        # with softmax over Rescorla–Wagner learned domain utilities. Concentration
+        # then has to emerge through the success→reputation→utility feedback loop
+        # rather than from a hardwired skill preference (cf. Eq 6 in Type A).
+        # alpha_rl is the per-action learning rate; beta_rl is the softmax inverse
+        # temperature (β=0 → uniform selection, β large → near-greedy).
+        self.enable_type_b = enable_type_b
+        self.alpha_rl      = alpha_rl
+        self.beta_rl       = beta_rl
 
         self.lab_turnover_events: list[tuple] = []
         self.scientific_models: list[ScientificModel] = []

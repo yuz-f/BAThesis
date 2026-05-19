@@ -88,6 +88,14 @@ class Researcher(mesa.Agent):
         self.current_target: ScientificModel | None = None
         self.work_progress:  int = 0
 
+        # Type B: per-domain learned utility for softmax action selection.
+        # Updated by Rescorla–Wagner after each domain-locating action
+        # (exploit, train, explore, debunk). Initialised at 0.5 so all
+        # domains start equally attractive — concentration must then emerge
+        # from the success→reward→utility loop rather than from any
+        # hardwired skill preference.
+        self.domain_utility = np.full(n_domains, 0.5)
+
         # per-step Pearson cache
         _sa = np.array(domain_skills, dtype=float)
         self._sc_cache   = _sa - _sa.mean()
@@ -107,6 +115,25 @@ class Researcher(mesa.Agent):
 
     def _sigmoid_gain(self, current: float, base_rate: float) -> float:
         return base_rate * current * (1.0 - current) * 4.0
+
+    def _update_utility(self, domain: int, reward: float) -> None:
+        """
+        Type B Rescorla–Wagner update on the researcher's per-domain
+        learned utility:
+
+            U_d ← U_d + α (R - U_d)
+
+        Called after every domain-locating action with the observed
+        reward — for exploit success the reward is reputation gained
+        (reported_truthfulness × salience), for failure it is 0, for
+        training a small positive value, for explore the spawned
+        model's actual truthfulness. No-op when enable_type_b is False
+        so Type A behaviour is preserved bit-identical.
+        """
+        if not self.model.enable_type_b:
+            return
+        alpha = self.model.alpha_rl
+        self.domain_utility[domain] += alpha * (reward - self.domain_utility[domain])
 
     def _work_required(self, m: ScientificModel) -> int:
         base         = max(3, round(m.complexity[m.domain] * 8))
@@ -268,6 +295,14 @@ class Researcher(mesa.Agent):
                 if m.domain == domain and m.uid != new_uid:
                     m.salience = max(0.0, m.salience * 0.35)
 
+        # Type B: explore yields a reward proportional to the new model's
+        # actual quality × initial salience. High-skill domains will tend to
+        # produce higher-truthfulness models (gain follows the domain cap and
+        # researcher skill), so the utility update naturally rewards
+        # productive domains without referencing skill directly.
+        new_model = self.model.scientific_models[-1]
+        self._update_utility(domain, new_model.actual_truthfulness * new_model.salience)
+
         self._record_spawn(domain)
 
     def _debunk(self, target: ScientificModel):
@@ -290,6 +325,7 @@ class Researcher(mesa.Agent):
         if self.random.random() < success_prob:
             reward = target.actual_truthfulness * target.salience
             self.reputation                 += reward
+            self._update_utility(target.domain, reward)
             self.publications               += 1
             self.domain_pubs[target.domain] += 1
             target.actual_truthfulness = max(0.01, target.actual_truthfulness * 0.75)
@@ -311,6 +347,7 @@ class Researcher(mesa.Agent):
                     m.actual_truthfulness = max(0.01, m.actual_truthfulness * 0.88)
                     m.salience            = max(0.0,  m.salience - 0.08)
         else:
+            self._update_utility(target.domain, 0.0)
             self._assimilate(target, self.skill_gain_attempt * 0.2)
         self.debunk_steps += 1
 
@@ -332,6 +369,12 @@ class Researcher(mesa.Agent):
         self._assimilate(m, effective_rate)
         self.training_steps += 1
         self.current_domain = m.domain
+        # Type B: training has no immediate reputation reward, but the agent
+        # is making forward progress toward a future exploit. Treat it as a
+        # small positive signal scaled by profile alignment, so domains where
+        # training is productive (well-matched models exist) are not
+        # mistakenly down-weighted by the RW rule.
+        self._update_utility(m.domain, 0.1 * self._profile_alignment(m))
 
     def _attempt(self, target: ScientificModel):
         """
@@ -354,7 +397,9 @@ class Researcher(mesa.Agent):
         if self.random.random() < self.success_probability(target):
             self.publications += 1
             self.domain_pubs[target.domain] += 1
-            self.reputation += target.reported_truthfulness * target.salience
+            reward = target.reported_truthfulness * target.salience
+            self.reputation += reward
+            self._update_utility(target.domain, reward)
             target.cite()
             self._assimilate(target, self.skill_gain_attempt)
 
@@ -393,6 +438,7 @@ class Researcher(mesa.Agent):
         else:
             self.model.replication_failures += 1
             self.model.domain_replication_failures[target.domain] += 1
+            self._update_utility(target.domain, 0.0)
             effective_rate = self.skill_gain_attempt * 0.3 * self._profile_alignment(target)
             self._assimilate(target, effective_rate)
 
@@ -411,8 +457,36 @@ class Researcher(mesa.Agent):
 
     def _choose_action(self, exploit: list, invest: list, best_domain: int):
         """
-        Career stage boost on explore weight (v2, unchanged).
-        Stability attraction is already baked into _exploit_value (v3).
+        Choose among the top two exploit/invest candidates plus one explore option.
+
+        Two architectures are supported:
+
+        Type A (default, enable_type_b=False): the classical model. Each
+        candidate's weight is multiplied by the parameter-free skill-bias term
+
+            skill_bias_d = (skill_d / mean_skill) ** 0.5         (Equation 6)
+
+        which directly biases selection toward the researcher's higher-skill
+        domains. This is the architecturally directional rule whose
+        contribution to H2's concentration result is the main thing the
+        Type B reformulation is designed to test.
+
+        Type B (enable_type_b=True): the best-model variant. The skill-bias
+        term is removed entirely. Selection weight is instead modulated by
+
+            softmax_d = exp(β · (U_d − mean U))
+
+        where U_d is the agent's Rescorla–Wagner-learned utility for domain
+        d, updated after every domain-locating action with the observed
+        reward. Skill no longer enters action selection directly; it enters
+        only through (a) success_probability, which determines whether an
+        exploit attempt succeeds and therefore the realised reward, and
+        (b) the explore_value scoring. Domain concentration in Type B must
+        therefore emerge through the success → reward → utility feedback
+        loop rather than from a hardwired skill preference, providing an
+        empirical test of how much of H2 is architecturally guaranteed.
+        Similarity is also removed from the exploit weight in Type B so
+        that no direct skill term enters the selection step.
         """
         scored = []
         for m in exploit:
@@ -427,18 +501,33 @@ class Researcher(mesa.Agent):
         stage_boost = (max(0.0, 1.0 - self.career_age / 150.0)
                        if self.model.enable_realism else 0.0)
 
-        mean_sk = float(np.mean(self.domain_skills)) + 1e-8
-        weights = []
-        for action, target, _ in top:
-            domain     = target if action == 'explore' else target.domain
-            skill_bias = (self.domain_skills[domain] / mean_sk) ** 0.5
-            if action == 'explore':
-                w = 1.5 * (1.0 + stage_boost) * self.domain_skills[target] * skill_bias
-            else:
-                w = (self._similarity(target)
-                     + target.salience
-                     + target.reported_truthfulness) * skill_bias
-            weights.append(max(w, 1e-6))
+        if self.model.enable_type_b:
+            # --- Type B: softmax over learned domain utility ---
+            beta    = self.model.beta_rl
+            u_mean  = float(self.domain_utility.mean())
+            weights = []
+            for action, target, _ in top:
+                domain      = target if action == 'explore' else target.domain
+                util_weight = float(np.exp(beta * (self.domain_utility[domain] - u_mean)))
+                if action == 'explore':
+                    w = 1.5 * (1.0 + stage_boost) * util_weight
+                else:
+                    w = (target.salience + target.reported_truthfulness) * util_weight
+                weights.append(max(w, 1e-6))
+        else:
+            # --- Type A: skill-bias action selection (Equation 6) ---
+            mean_sk = float(np.mean(self.domain_skills)) + 1e-8
+            weights = []
+            for action, target, _ in top:
+                domain     = target if action == 'explore' else target.domain
+                skill_bias = (self.domain_skills[domain] / mean_sk) ** 0.5
+                if action == 'explore':
+                    w = 1.5 * (1.0 + stage_boost) * self.domain_skills[target] * skill_bias
+                else:
+                    w = (self._similarity(target)
+                         + target.salience
+                         + target.reported_truthfulness) * skill_bias
+                weights.append(max(w, 1e-6))
 
         probs = [w / sum(weights) for w in weights]
         idx   = self.random.choices(range(len(top)), weights=probs, k=1)[0]

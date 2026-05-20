@@ -466,7 +466,21 @@ class Researcher(mesa.Agent):
                 target.actual_truthfulness = max(0.01,
                                                  target.actual_truthfulness - correction)
 
-            if proficiency > 0.35 and self.random.random() < proficiency * 0.40:
+            # Best-model variant: debunk trigger threshold is gradient-aware
+            # rather than a fixed magic 0.35. Stable plateau models require
+            # high proficiency to challenge (rigour bar for established
+            # paradigms); unstable peak edges can be challenged at lower
+            # proficiency (cutting-edge results are structurally easier to
+            # overturn). The threshold scales linearly with the target
+            # model's landscape stability:
+            #   threshold = 0.20 + 0.40 × stability(x, y)
+            # Stable target (s=1): threshold = 0.60 (only experts can attempt)
+            # Unstable target (s=0): threshold = 0.20 (low bar)
+            # Mean stability ≈ 0.57 → mean threshold ≈ 0.43 (close to the
+            # old fixed 0.35 in aggregate, but now sensitive to where on
+            # the landscape the target model sits).
+            debunk_threshold = 0.20 + 0.40 * target.landscape_stability
+            if proficiency > debunk_threshold and self.random.random() < proficiency * 0.40:
                 self._debunk(target)
 
     # --- probabilistic decision ---

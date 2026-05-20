@@ -142,8 +142,12 @@ class ScienceWorld(mesa.Model):
 
         # One epistemic landscape per domain — 3 valleys, 4 peaks each.
         # Seeded from the model rng so runs are fully reproducible.
+        # Best-model variant: landscape attractors are plateaus (broad,
+        # stable paradigms) and peaks (narrow, unstable cutting-edge).
+        # Truth is the altitude; stability is derived from local gradient
+        # magnitude. See landscape.py docstring for the semantic redesign.
         self.landscapes: list[EpistemicLandscape] = [
-            EpistemicLandscape(n_valleys=3, n_peaks=4, rng=self.rng)
+            EpistemicLandscape(n_plateaus=2, n_peaks=4, rng=self.rng)
             for _ in range(n_domains)
         ]
 

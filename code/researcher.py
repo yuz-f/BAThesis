@@ -267,6 +267,18 @@ class Researcher(mesa.Agent):
             float(np.clip(raw_pos[1], 0.01, 0.99)),
         )
 
+        # Best-model variant: a breakthrough sometimes repositions the new
+        # model across the landscape to a different attractor (plateau or
+        # peak) rather than placing it near the researcher's current position.
+        # Operationalises paradigm-shifting results that establish a new
+        # research region rather than refining the current one.
+        if is_breakthrough and self.model.enable_landscape:
+            if self.random.random() < 0.5:
+                landscape = self.model.landscapes[domain]
+                position  = landscape.breakthrough_across_ridge(
+                    current_pos[0], current_pos[1], self.model.rng
+                )
+
         # Competitive pressure → misconduct probability (gated by enable_realism)
         if self.model.enable_realism:
             median_rep = self.model._median_rep
@@ -414,15 +426,19 @@ class Researcher(mesa.Agent):
                 current_pos + 0.10 * (np.array(target.position) - current_pos)
             )
 
-            # Follow-up spawn — gradient-descent position toward valley (only if landscape on)
+            # Follow-up spawn — step toward a stable, high-truth plateau
+            # (only if landscape on). Replaces step_toward_valley under the
+            # best-model landscape semantics: each cumulative publication in
+            # a research programme drifts toward higher truth and lower
+            # gradient (an established paradigm region).
             n_domain   = self.model._cached_domain_counts.get(target.domain, 0)
             spawn_prob = 0.15 / (1.0 + np.log1p(n_domain))
             if self.random.random() < spawn_prob:
                 if self.model.enable_landscape:
                     landscape = self.model.landscapes[target.domain]
-                    next_pos  = landscape.step_toward_valley(*target.position, step_size=0.05)
+                    next_pos  = landscape.step_toward_stable(*target.position, step_size=0.05)
                 else:
-                    # neutralised: place follow-up at the parent position (no drift toward valley)
+                    # neutralised: place follow-up at the parent position (no drift toward stability)
                     next_pos  = target.position
                 self.model.spawn_model(
                     origin_lab_id=self.lab_id,

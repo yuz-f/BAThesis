@@ -69,8 +69,8 @@ def landscape_grid(landscape, n: int = 80):
 
 def pick_representative_domain(world, n_grid: int = 60) -> int:
     """
-    Pick the domain whose landscape has the largest height range — the most
-    visually informative one (clearest valley/peak contrast).
+    Pick the domain whose landscape has the largest truth range — the most
+    visually informative one (clearest plateau/peak/basin contrast).
     """
     ranges = []
     for d in range(world.n_domains):
@@ -177,13 +177,13 @@ def main():
 
     # Panel A: 3D surface
     ax_a = fig.add_subplot(gs[0, 0], projection="3d")
-    surf = ax_a.plot_surface(X, Y, Z, cmap="viridis_r", linewidth=0,
+    surf = ax_a.plot_surface(X, Y, Z, cmap="viridis", linewidth=0,
                               antialiased=True, alpha=0.95,
                               rstride=2, cstride=2)
     ax_a.set_xlabel("theory-space $x$", labelpad=4)
     ax_a.set_ylabel("theory-space $y$", labelpad=4)
-    ax_a.set_zlabel("instability $h$", labelpad=4)
-    ax_a.set_title(f"A.  Epistemic landscape — D{domain}\n(valleys = stable paradigms; peaks = unstable theory)",
+    ax_a.set_zlabel("truth $t$", labelpad=4)
+    ax_a.set_title(f"A.  Epistemic landscape — D{domain}\n(plateaus = stable paradigms; peaks = high-truth but unstable)",
                    pad=14, fontsize=10)
     ax_a.view_init(elev=28, azim=-55)
     ax_a.set_zlim(0, 1)
@@ -191,7 +191,7 @@ def main():
 
     # Panel B: 2D heatmap of same surface with seed model marked
     ax_b = fig.add_subplot(gs[0, 1])
-    im_b = ax_b.contourf(X, Y, Z, levels=20, cmap="viridis_r")
+    im_b = ax_b.contourf(X, Y, Z, levels=20, cmap="viridis")
     ax_b.contour(X, Y, Z, levels=10, colors="white", alpha=0.25, linewidths=0.5)
     if seed_model_pos is not None:
         ax_b.plot(*seed_model_pos, marker="*", color="white", markersize=18,
@@ -206,12 +206,12 @@ def main():
     ax_b.set_aspect("equal", adjustable="box")
 
     cbar = fig.colorbar(im_b, ax=ax_b, fraction=0.046, pad=0.04)
-    cbar.set_label("instability $h$", fontsize=8)
+    cbar.set_label("truth $t$", fontsize=8)
     cbar.ax.tick_params(labelsize=7)
 
     # Panel C: PEAKED at t=300
     ax_c = fig.add_subplot(gs[1, 0])
-    ax_c.contourf(X, Y, Z, levels=20, cmap="viridis_r")
+    ax_c.contourf(X, Y, Z, levels=20, cmap="viridis")
     ax_c.contour(X, Y, Z, levels=10, colors="white", alpha=0.25, linewidths=0.5)
     scatter_models(ax_c, spec_models)
     ax_c.set_xlim(0, 1); ax_c.set_ylim(0, 1)
@@ -222,7 +222,7 @@ def main():
 
     # Panel D: BROAD at t=300
     ax_d = fig.add_subplot(gs[1, 1])
-    ax_d.contourf(X, Y, Z, levels=20, cmap="viridis_r")
+    ax_d.contourf(X, Y, Z, levels=20, cmap="viridis")
     ax_d.contour(X, Y, Z, levels=10, colors="white", alpha=0.25, linewidths=0.5)
     scatter_models(ax_d, gen_models)
     ax_d.set_xlim(0, 1); ax_d.set_ylim(0, 1)
@@ -237,7 +237,7 @@ def main():
              "publication history). "
              "Foreground dots: currently-active models (salience $\\geq 0.05$); "
              "red = high truthfulness ($\\theta_{\\mathrm{actual}} \\geq 0.50$), grey = low truthfulness. "
-             "Dot size $\\propto$ salience. Colormap: yellow = peaks (unstable), dark = valleys (stable).",
+             "Dot size $\\propto$ salience. Colormap: yellow = high truth (plateaus + peaks), dark = low-truth basins.",
              ha="center", fontsize=8, style="italic", color="#444", wrap=True)
 
     out = os.path.join(HERE, "..", "meta", "img", "landscape_figure.pdf")

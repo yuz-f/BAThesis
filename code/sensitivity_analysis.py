@@ -12,8 +12,11 @@ Key metrics recorded per run:
   - Mean best truthfulness (average of per-domain max truthfulness)
 
 The qualitative finding that matters:
-  peaked-profile researchers show higher replication failure rate AND higher Gini than broad-profile researchers.
-  If the sign of (spec − gen) flips for any parameter level, robustness is compromised.
+  Under the mean-constant reparameterisation the confirmed directions are
+  that peaked-profile researchers show a LOWER replication failure rate
+  (H1 reversed) AND a HIGHER per-domain Gini (H2) than broad-profile
+  researchers. If the sign of (spec − gen) flips for any parameter level,
+  robustness is compromised.
 
 Usage:
     cd BAThesis/code
@@ -186,7 +189,14 @@ def run_sensitivity() -> pd.DataFrame:
 
         fail_delta = avg('fail_rate', spec) - avg('fail_rate', gen)
         gini_delta = avg('gini', spec)      - avg('gini', gen)
-        robust     = (fail_delta > 0) and (gini_delta > 0)
+        # Robustness is directional consistency with the confirmed effects
+        # under the mean-constant reparameterisation:
+        #   H1 (reversed): Peaked has the LOWER failure rate → fail_delta < 0
+        #   H2:            Peaked has the HIGHER Gini         → gini_delta > 0
+        # (The pre-reparameterisation script expected fail_delta > 0; that
+        #  expectation was stale once the mean-skill confound was removed
+        #  and H1 reversed direction.)
+        robust     = (fail_delta < 0) and (gini_delta > 0)
 
         rows.append({
             'parameter':  param_name,

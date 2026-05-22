@@ -2,12 +2,12 @@ VALIDATION SUMMARY
 ==================
 
 Parameter recovery (Tier 3.1):
-  R²         = 0.9585
-  RMSE       = 0.0156
-  Pearson r  = 0.9790  (p = 1.33e-62)
+  R²         = 0.8890
+  RMSE       = 0.0570
+  Pearson r  = 0.9429  (p = 8.48e-44)
 
 Per-researcher publication Gini (Tier 3.2):
-  Simulated mean        = 0.4085
-  Simulated SD          = 0.0255
+  Simulated mean        = 0.3920
+  Simulated SD          = 0.0268
   Empirical band        = [0.5, 0.7]
   Runs in empirical band = 0/90 (0.0%)

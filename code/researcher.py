@@ -321,18 +321,25 @@ class Researcher(mesa.Agent):
         """
         Attempt to disprove a published model.
 
-        Landscape extension (v3):
-          Peak models are more vulnerable to debunking — they occupy unstable
-          theory-space where the conditions for the result are narrow and poorly
-          characterised.
+        Quadratic-in-gradient instability boost (best-model variant):
+          Models at steep (high-gradient) landscape positions are more
+          vulnerable to debunking — they occupy unstable theory-space where
+          a small perturbation in theoretical position yields a large change
+          in truth. The boost uses the *quadratic* instability term
 
-            instability_boost = 1.0 + 0.5 × (1 − landscape_stability)
-            Valley (stability=1): boost = 1.00 — standard difficulty
-            Peak   (stability=0): boost = 1.50 — 50 % more debunkable
+            instability_boost = 1.0 + 0.5 × |∇truth|² / (1 + |∇truth|²)
+
+          rather than the linear (1 − landscape_stability) form used by the
+          other four downstream stability effects. The squaring is motivated
+          by a first-order perturbation-variance argument (see Methods,
+          Equation 5): the variance of truth over a small neighbourhood
+          scales as |∇truth|², so debunkability is naturally quadratic in
+          the gradient. This emphasises sharp peak edges over long uniform
+          slopes. Boost ranges from 1.00 (locally flat) to 1.50 (steepest).
         """
         self.current_domain = target.domain
         proficiency       = self.domain_skills[target.domain]
-        instability_boost = 1.0 + 0.5 * (1.0 - target.landscape_stability)
+        instability_boost = 1.0 + 0.5 * target.landscape_instability_quad
         success_prob      = proficiency * (1.0 - target.actual_truthfulness) * instability_boost
         if self.random.random() < success_prob:
             reward = target.actual_truthfulness * target.salience

@@ -36,11 +36,15 @@ sys.path.insert(0, HERE)
 STEPS = 300
 SEEDS = list(range(15))
 
+# Scenario definitions are imported from experiment.py so the
+# (mean_skill, gap) reparameterisation stays in one place. selection_interval
+# is dropped here because the layer flags drive the ablation, not the
+# selection schedule.
+from experiment import PEAKED as _PEAKED, BROAD as _BROAD
+
 SCENARIOS = {
-    "PEAKED": dict(peak_skill_mean=0.55, peak_skill_std=0.07,
-                 other_skill_mean=0.25, other_skill_std=0.06),
-    "BROAD":  dict(peak_skill_mean=0.55, peak_skill_std=0.08,
-                 other_skill_mean=0.33, other_skill_std=0.08),
+    "PEAKED": {k: v for k, v in _PEAKED.items() if k != "selection_interval"},
+    "BROAD":  {k: v for k, v in _BROAD.items()  if k != "selection_interval"},
 }
 
 LAYERS = {

@@ -403,10 +403,12 @@ class ScienceWorld(mesa.Model):
         if self.enable_landscape:
             landscape         = self.landscapes[domain]
             land_stability    = landscape.stability(*pos)
+            land_instab_quad  = landscape.instability_quadratic(*pos)
             landscape_pb      = landscape.position_bias(*pos)
         else:
             # neutralised: same stability for every model, no peak bias amplification
             land_stability    = 0.5
+            land_instab_quad  = 0.5
             landscape_pb      = 0.0
 
         # --- truthfulness gain ---
@@ -457,6 +459,7 @@ class ScienceWorld(mesa.Model):
             author_agent_id=author_agent_id,
             position=pos,
             landscape_stability=land_stability,
+            landscape_instability_quad=land_instab_quad,
         )
         m.salience = initial_salience
         self.scientific_models.append(m)

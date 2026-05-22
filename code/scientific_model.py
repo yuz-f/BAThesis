@@ -44,7 +44,8 @@ class ScientificModel:
                  bias_inflation: float = 0.0,
                  author_agent_id: int | None = None,
                  position: tuple[float, float] = (0.5, 0.5),
-                 landscape_stability: float = 0.5):
+                 landscape_stability: float = 0.5,
+                 landscape_instability_quad: float = 0.5):
         self.uid                  = uid
         self.domain               = domain
         self.complexity           = complexity
@@ -63,6 +64,11 @@ class ScientificModel:
         # Epistemic landscape position and stability
         self.position:             tuple[float, float] = position
         self.landscape_stability:  float = landscape_stability
+        # Quadratic-in-gradient instability — used by the debunk mechanism
+        # only (surgical quadratic; the other four downstream stability
+        # effects keep the linear 1 − landscape_stability form). Defaults
+        # to 0.5 (neutral) when the landscape is disabled.
+        self.landscape_instability_quad: float = landscape_instability_quad
 
         # precomputed for fast Pearson correlation in researcher._pearson_cor
         _ca = np.array(complexity, dtype=float)

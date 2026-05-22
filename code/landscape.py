@@ -152,6 +152,25 @@ class EpistemicLandscape:
         """
         return float(1.0 / (1.0 + self.STABILITY_LAMBDA * self.gradient_magnitude(x, y)))
 
+    def instability_quadratic(self, x: float, y: float) -> float:
+        """
+        Quadratic-in-gradient instability ∈ [0, 1], used by the debunk
+        mechanism only:
+
+            instability_quad = |∇truth|² / (1 + |∇truth|²)
+
+        Motivated by a first-order perturbation-variance argument: if a
+        competing researcher samples a nearby theoretical position, the
+        variance of truth over that neighbourhood scales as |∇truth|², so
+        debunkability is naturally *quadratic* in the gradient (i.e., in
+        tan² of the slope angle) rather than linear. The bounded rational
+        form keeps it in [0, 1]. The squaring emphasises sharp peak edges
+        over long uniform slopes relative to the linear (1 − stability)
+        term used by the other four downstream stability effects.
+        """
+        g2 = self.gradient_magnitude(x, y) ** 2
+        return float(g2 / (1.0 + g2))
+
     # ------------------------------------------------------------------
     # Movement dynamics
     # ------------------------------------------------------------------

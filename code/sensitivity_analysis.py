@@ -48,15 +48,13 @@ BASE = {
     'mutation_std':       0.04,
 }
 
-# Scenario skill distributions (must match run.py)
-PEAKED = dict(
-    peak_skill_mean=0.55, peak_skill_std=0.07,
-    other_skill_mean=0.25, other_skill_std=0.06,
-)
-BROAD = dict(
-    peak_skill_mean=0.55, peak_skill_std=0.08,
-    other_skill_mean=0.33, other_skill_std=0.08,
-)
+# Scenario skill distributions — imported from experiment.py so the
+# (mean_skill, gap) reparameterisation is defined in one place.
+# selection_interval is dropped because it is supplied via model_kw.
+from experiment import PEAKED as _PEAKED, BROAD as _BROAD
+
+PEAKED = {k: v for k, v in _PEAKED.items() if k != "selection_interval"}
+BROAD  = {k: v for k, v in _BROAD.items()  if k != "selection_interval"}
 
 # ---------------------------------------------------------------------------
 # Helpers

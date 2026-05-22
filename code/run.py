@@ -4,13 +4,13 @@ run.py — entry point for the Science Lab ABM.
 Run from the BAThesis/code/ folder:
     .venv/bin/python3 run.py
 
-Scenarios
+Scenarios (mean-constant reparameterisation, mean_skill = 0.32)
 ---------
-LOW  (peaked):  one pronounced peak domain, weak secondary skills (μ≈0.25)
-                    → researchers concentrate in their niche; domain monopolies form
+LOW  (peaked):  gap=0.40 → peak=0.68, other=0.28
+                    → competence concentrated in one niche; domain monopolies form
 
-HIGH (broad):  same peak domain, elevated secondary baseline (μ≈0.33)
-                    → researchers can engage profitably across multiple domains
+HIGH (broad):  gap=0.18 → peak=0.482, other=0.302
+                    → same total competence spread across more domains
 """
 
 from world import ScienceWorld
@@ -21,19 +21,20 @@ from visualization import (
 
 STEPS = 300
 
-# peaked scenario — one clear but moderate peak, weaker elsewhere
-# peak ≈ 0.55, other ≈ 0.25 → ratio ~2.2×, gap ~0.30
-LOW_PEAK_MEAN  = 0.55
+# Mean-constant reparameterisation: peak = m + 0.9·gap, other = m - 0.1·gap.
+MEAN_SKILL = 0.32
+
+# peaked scenario — competence concentrated (gap = 0.40)
+LOW_PEAK_MEAN  = MEAN_SKILL + 0.9 * 0.40   # 0.68
 LOW_PEAK_STD   = 0.07
-LOW_OTHER_MEAN = 0.25
+LOW_OTHER_MEAN = MEAN_SKILL - 0.1 * 0.40   # 0.28
 LOW_OTHER_STD  = 0.06
 
-# broad scenario — same moderate peak, broader floor with more overlap
-# peak ≈ 0.55, other ≈ 0.33 → ratio ~1.7×, gap ~0.22
-HIGH_PEAK_MEAN  = 0.55
-HIGH_PEAK_STD   = 0.08
-HIGH_OTHER_MEAN = 0.33
-HIGH_OTHER_STD  = 0.08
+# broad scenario — competence distributed (gap = 0.18)
+HIGH_PEAK_MEAN  = MEAN_SKILL + 0.9 * 0.18  # 0.482
+HIGH_PEAK_STD   = 0.07
+HIGH_OTHER_MEAN = MEAN_SKILL - 0.1 * 0.18  # 0.302
+HIGH_OTHER_STD  = 0.06
 
 
 def run_scenario(peak_mean, peak_std, other_mean, other_std,
@@ -79,8 +80,8 @@ if __name__ == "__main__":
     world_high, df_high, adf_high = run_scenario(
         HIGH_PEAK_MEAN, HIGH_PEAK_STD, HIGH_OTHER_MEAN, HIGH_OTHER_STD, rng=rng)
 
-    print_domain_diagnostics(world_low,  "Peaked (μ_other=0.25)")
-    print_domain_diagnostics(world_high, "Broad (μ_other=0.33)")
+    print_domain_diagnostics(world_low,  "Peaked (gap=0.40)")
+    print_domain_diagnostics(world_high, "Broad (gap=0.18)")
 
     n_domains = world_low.n_domains
     n_labs    = world_low.n_labs

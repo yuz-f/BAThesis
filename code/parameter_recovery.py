@@ -5,8 +5,9 @@ parameter_recovery.py
 Two methodological additions to the main experiment:
 
 1. PARAMETER RECOVERY (Tier 3.1):
-   Sweeps the manipulated parameter `other_skill_mean` over a grid of values
-   spanning the PEAKED and BROAD conditions plus extrapolations, with 15 seeds
+   Sweeps the manipulated parameter `gap` (skill-distribution dispersion,
+   under the mean-constant reparameterisation) over a grid spanning the
+   FLAT, BROAD and PEAKED conditions plus extrapolations, with 15 seeds
    per value. Asks: from the simulation outcome metrics alone (fail_rate,
    per-domain Gini, action fractions, reputation), can the underlying
    parameter be recovered? This tests whether the simulated outcomes carry
@@ -38,18 +39,27 @@ sys.path.insert(0, HERE)
 STEPS = 300
 SEEDS = list(range(15))     # 15 seeds × 6 values × ≈300s = ≈10 min on multi-core
 
-# Sweep grid: spans PEAKED (.25), BROAD (.33), and extrapolates both directions.
-OTHER_SKILL_MEAN_GRID = [0.20, 0.25, 0.30, 0.33, 0.38, 0.43]
+# The manipulated parameter under the (mean_skill, gap) reparameterisation
+# is GAP. mean_skill is held constant at 0.32; gap is swept over a grid
+# spanning Flat (gap=0), Broad (gap=0.18), Peaked (gap=0.40) and
+# extrapolating beyond. peak/other are derived: peak = m + 0.9·gap,
+# other = m - 0.1·gap.
+MEAN_SKILL = 0.32
+GAP_GRID   = [0.00, 0.10, 0.18, 0.28, 0.40, 0.50]
 
-# All other parameters fixed to BROAD-style baseline; we manipulate one variable.
+# All other parameters fixed; we manipulate one variable (gap).
 FIXED = dict(
-    peak_skill_mean=0.55,
     peak_skill_std=0.07,
     other_skill_std=0.06,
     selection_interval=40,
     train_threshold=0.30,
     skill_gain_attempt=0.06,
 )
+
+
+def _gap_to_means(gap: float) -> tuple[float, float]:
+    """Convert a gap value to (peak_skill_mean, other_skill_mean) at MEAN_SKILL."""
+    return (MEAN_SKILL + 0.9 * gap, MEAN_SKILL - 0.1 * gap)
 
 
 def _gini(vals):
@@ -62,10 +72,14 @@ def _gini(vals):
 
 
 def _worker(task):
-    other_mean, seed = task
+    gap, seed = task
     from world import ScienceWorld
 
-    w = ScienceWorld(rng=seed, other_skill_mean=other_mean, **FIXED)
+    peak_mean, other_mean = _gap_to_means(gap)
+    w = ScienceWorld(rng=seed,
+                     peak_skill_mean=peak_mean,
+                     other_skill_mean=other_mean,
+                     **FIXED)
 
     action_counts = {"exploit": 0, "explore": 0, "train": 0}
     prev = {}
@@ -105,6 +119,7 @@ def _worker(task):
     mean_rep = float(np.mean(reps))
 
     return dict(
+        gap=gap,
         other_skill_mean=other_mean,
         seed=seed,
         fail_rate=fail_rate,
@@ -119,9 +134,9 @@ def _worker(task):
 
 
 if __name__ == "__main__":
-    tasks = [(om, seed) for om in OTHER_SKILL_MEAN_GRID for seed in SEEDS]
+    tasks = [(gap, seed) for gap in GAP_GRID for seed in SEEDS]
     print(f"Running {len(tasks)} simulations "
-          f"({len(OTHER_SKILL_MEAN_GRID)} values × {len(SEEDS)} seeds × {STEPS} steps)…",
+          f"({len(GAP_GRID)} gap values × {len(SEEDS)} seeds × {STEPS} steps)…",
           flush=True)
 
     with Pool() as pool:

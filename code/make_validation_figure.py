@@ -5,10 +5,11 @@ make_validation_figure.py
 Two-panel methodological-validation figure that supports Tier 3 claims:
 
 Panel A — Parameter recovery (Tier 3.1):
-  Predicted vs. actual scatter of `other_skill_mean` recovered from
-  outcome metrics via leave-one-out cross-validated linear regression.
-  Tests partial identifiability: does the simulation output carry
-  information about its own input parameter?
+  Predicted vs. actual scatter of `gap` (skill-distribution dispersion,
+  the manipulated parameter under the mean-constant reparameterisation)
+  recovered from outcome metrics via leave-one-out cross-validated
+  linear regression. Tests partial identifiability: does the simulation
+  output carry information about its own input parameter?
 
 Panel B — Per-researcher publication-Gini distribution (Tier 3.2):
   Across the parameter sweep, the Gini coefficient of per-researcher
@@ -64,7 +65,7 @@ def main():
                     "mean_pubs", "mean_reputation",
                     "exploit_frac", "explore_frac", "train_frac"]
     X = df[feature_cols].values
-    y = df["other_skill_mean"].values
+    y = df["gap"].values   # manipulated parameter under (mean_skill, gap) reparam
 
     # leave-one-out cross-validation
     loo = LeaveOneOut()
@@ -82,7 +83,7 @@ def main():
 
     # ── Panel B: per-researcher Gini distribution ───────────────────────────
     # Aggregate by parameter value
-    gini_summary = df.groupby("other_skill_mean")["researcher_gini"].agg(
+    gini_summary = df.groupby("gap")["researcher_gini"].agg(
         ["mean", "std", "count"]).reset_index()
     print("\nPer-researcher publication Gini by parameter value:")
     print(gini_summary.to_string(index=False))
@@ -106,8 +107,8 @@ def main():
     lim = (y.min() - 0.02, y.max() + 0.02)
     ax_a.plot(lim, lim, "k--", lw=0.8, alpha=0.6, label="$y = x$ (perfect recovery)")
     ax_a.set_xlim(lim); ax_a.set_ylim(lim)
-    ax_a.set_xlabel("True $\\mu_{\\mathrm{other}}$")
-    ax_a.set_ylabel("Recovered $\\hat{\\mu}_{\\mathrm{other}}$ (LOO-CV)")
+    ax_a.set_xlabel("True skill-distribution gap")
+    ax_a.set_ylabel("Recovered $\\widehat{\\mathrm{gap}}$ (LOO-CV)")
     ax_a.set_title(f"A.  Parameter recovery from outcome metrics\n"
                    f"$R^2 = {r2:.2f}$,  RMSE = {rmse:.3f},  $r = {pearson_r:.2f}$",
                    pad=8, fontsize=10)

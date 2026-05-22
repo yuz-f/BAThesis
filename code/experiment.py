@@ -1,49 +1,40 @@
 """
 30-seed confirmatory experiment.
 
-MODEL SPECIFICATION — 2026-05-07  (v3: epistemic landscape, +FLAT control)
-  Scenarios    : PEAKED    (peak_skill_mean=0.55, peak_skill_std=0.07,
-                          other_skill_mean=0.25, other_skill_std=0.06)
-                 BROAD     (peak_skill_mean=0.55, peak_skill_std=0.08,
-                          other_skill_mean=0.33, other_skill_std=0.08)
-                 FLAT (peak_skill_mean=0.28, peak_skill_std=0.02,
-                          other_skill_mean=0.28, other_skill_std=0.02) — control:
-                          all researchers have near-identical flat profiles
-                          at the PEAKED per-researcher mean (0.28), so the only
-                          difference vs. PEAKED is the shape of the skill
-                          distribution. Tests whether H1/H2 effects require
-                          heterogeneity once mean skill is held constant.
+MODEL SPECIFICATION — best-model branch (mean-constant reparameterisation)
+  Scenarios are defined by (mean_skill, gap) rather than (peak, other)
+  directly. With one peak domain and nine non-peak domains:
+        peak  = mean_skill + 0.9 · gap
+        other = mean_skill - 0.1 · gap
+  so (peak + 9·other)/10 == mean_skill exactly, for any gap. This holds
+  the per-researcher mean skill CONSTANT across all three scenarios and
+  varies only the dispersion (gap), removing the mean-skill confound
+  that the earlier (peak, other) parameterisation carried — under which
+  PEAKED had a lower mean (0.28) than BROAD (0.35).
+
+  Scenarios (mean_skill = 0.32 for all):
+    PEAKED  gap=0.40 → peak=0.68, other=0.28   (concentrated competence)
+    BROAD   gap=0.18 → peak=0.482, other=0.302 (distributed competence)
+    FLAT    gap=0.00 → peak=other=0.32         (uniform; no preferred domain)
+
+  The Peaked-vs-Broad contrast is therefore now a clean shape-only
+  manipulation at constant total competence. The trade-off: holding mean
+  constant means peak skill varies between scenarios (Peaked concentrates
+  the same budget into a higher peak) — which is the correct
+  operationalisation of specialisation as budget concentration.
+
   Shared params: selection_interval=40, n_labs=10, researchers_per_lab=5,
                  n_domains=10, train_threshold=0.30, skill_gain_attempt=0.06,
                  skill_gain_train=0.08, cull_fraction=0.25, mutation_std=0.04,
                  social_learn_strength=0.30, misconduct_base_rate=0.05
 
-  Key formulae:
-    success_probability = (sim + avg*(1-sim))
-                          * (actual/reported)
-                          * (0.75 + 0.25*landscape_stability)
-
-    skill_bias = (domain_skill / mean_skill) ** 0.5
-
-    bias_inflation [normal]      ~ clip(N(0.10 + pressure*0.08 + landscape_pb, 0.05), 0, 0.45)
-    bias_inflation [breakthrough]~ clip(N(0.05, 0.03) + landscape_pb,  0, 0.45)
-    bias_inflation [misconduct]  ~ clip(N(0.22, 0.06) + landscape_pb, 0, 0.45)
-
-  Mechanics (v1): breakthrough (skill²×0.10; salience shock ×0.35; high truthfulness),
-                  expert truth correction (proficiency>0.50 failures erode actual_truthfulness)
-  Mechanics (v2): career stages (explore boost decaying over 150 steps),
-                  social learning (lab domain success signal, λ=0.30, decay×0.90/step),
-                  competitive pressure bias (pressure ∝ 1 − rep/median_rep),
-                  misconduct pathway (p_base=0.05, scales with pressure),
-                  Matthew effect (reputation amplifies salience in exploit values)
-  Mechanics (v3): epistemic landscape per domain — 3 Gaussian valleys + 4 peaks;
-                  researcher theory-space positions converge via gradient descent;
-                  stability modifies replication probability, debunk vulnerability,
-                  salience decay (up to −25%), and publication bias inflation (up to +0.15)
+  Mechanics: best-model branch — redesigned epistemic landscape (plateaus +
+             peaks, gradient-based stability), gradient-aware debunk
+             threshold (Equation 5a), quadratic-in-gradient debunk
+             instability boost, optional Type B action selection.
 
   Steps        : 300 per run
   Seeds        : 0..29 (30 per scenario)
-  Last updated : 2026-05-07
 """
 from __future__ import annotations
 
@@ -57,25 +48,44 @@ sys.path.insert(0, os.path.dirname(__file__))
 STEPS  = 300
 SEEDS  = list(range(30))
 
-PEAKED = dict(
-    peak_skill_mean=0.55, peak_skill_std=0.07,
-    other_skill_mean=0.25, other_skill_std=0.06,
-    selection_interval=40,
-)
-BROAD = dict(
-    peak_skill_mean=0.55, peak_skill_std=0.08,
-    other_skill_mean=0.33, other_skill_std=0.08,
-    selection_interval=40,
-)
-# Flat scenario — matched to PEAKED's per-researcher mean skill of 0.28
-# (= (0.55 + 9·0.25)/10). This removes the mean-skill confound: any
-# H1/H2 difference between PEAKED and Flat is then attributable to the
-# *shape* of the skill distribution, not its overall magnitude.
-FLAT = dict(
-    peak_skill_mean=0.28, peak_skill_std=0.02,
-    other_skill_mean=0.28, other_skill_std=0.02,
-    selection_interval=40,
-)
+# Common per-researcher mean skill, held constant across all scenarios.
+MEAN_SKILL = 0.32
+
+
+def make_scenario(mean_skill: float, gap: float,
+                  peak_std: float = 0.07, other_std: float = 0.06,
+                  selection_interval: int = 40) -> dict:
+    """
+    Build a scenario dict from (mean_skill, gap).
+
+    With one peak domain and nine non-peak domains, the per-researcher
+    mean across all ten domains is held exactly equal to mean_skill:
+        peak  = mean_skill + 0.9 * gap
+        other = mean_skill - 0.1 * gap
+        (peak + 9 * other) / 10 == mean_skill   for any gap
+
+    gap is the dispersion of the skill profile: gap=0 gives a flat
+    profile, large gap gives a sharply peaked one. Holding mean_skill
+    fixed and varying only gap isolates distribution *shape* from
+    overall competence.
+    """
+    return dict(
+        peak_skill_mean  = mean_skill + 0.9 * gap,
+        peak_skill_std   = peak_std,
+        other_skill_mean = mean_skill - 0.1 * gap,
+        other_skill_std  = other_std,
+        selection_interval = selection_interval,
+    )
+
+
+# Peaked: concentrated competence — one sharp peak, weak elsewhere.
+PEAKED = make_scenario(MEAN_SKILL, gap=0.40, peak_std=0.07, other_std=0.06)
+# Broad: distributed competence — moderate peak, raised baseline.
+BROAD  = make_scenario(MEAN_SKILL, gap=0.18, peak_std=0.07, other_std=0.06)
+# Flat: uniform competence — no preferred domain (gap=0). Low std so
+# all researchers are near-identical, the no-heterogeneity control.
+FLAT   = make_scenario(MEAN_SKILL, gap=0.00, peak_std=0.02, other_std=0.02)
+
 SCENARIOS = {"PEAKED": PEAKED, "BROAD": BROAD, "FLAT": FLAT}
 
 SHARED = dict(

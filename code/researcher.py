@@ -371,13 +371,40 @@ class Researcher(mesa.Agent):
         self.debunk_steps += 1
 
     def _assimilate(self, m: ScientificModel, rate: float):
+        """
+        Update domain skills toward the complexity profile of a model.
+
+        Two learning regimes are supported:
+
+          * Frontier-limited (default, used in all reported experiments):
+              gain ∝ rate · skill·(1-skill)·4 · clip(gap, 0, 1) · focus
+            where gap = complexity − skill. Gain requires a higher-complexity
+            target — no published model with complexity above your current
+            skill, no learning. This is the rule implementing "shoulders of
+            giants" / Kuhn-style cumulative paradigm extension.
+
+          * Experience-based (enable_experience_gain=True, used in the
+              experience-gain robustness check, exp_gain_check.py):
+              gain ∝ rate · skill·(1-skill)·4 · focus
+            No gap multiplier — the act of engaging with research produces a
+            small skill increment via the S-curve regardless of whether the
+            target's complexity exceeds the researcher's current skill. The
+            S-curve still caps growth at skill → 1; the hard clip at 0.95
+            remains. This isolates the gap-dependent piece of the learning
+            rule from everything else.
+        """
         skill = np.array(self.domain_skills)
-        comp  = np.array(m.complexity)
-        gap   = comp - skill
         focus = np.full(len(skill), self.SECONDARY_LEARN_FACTOR)
         focus[m.domain] = 1.0
-        gain  = rate * skill * (1.0 - skill) * 4.0 * np.clip(gap, 0.0, 1.0) * focus
-        gain  = np.where(gap > 0.0, gain, 0.0)
+
+        if getattr(self.model, 'enable_experience_gain', False):
+            gain = rate * skill * (1.0 - skill) * 4.0 * focus
+        else:
+            comp = np.array(m.complexity)
+            gap  = comp - skill
+            gain = rate * skill * (1.0 - skill) * 4.0 * np.clip(gap, 0.0, 1.0) * focus
+            gain = np.where(gap > 0.0, gain, 0.0)
+
         self.domain_skills = np.clip(skill + gain, 0.01, 0.95).tolist()
 
     def _profile_alignment(self, m: ScientificModel) -> float:

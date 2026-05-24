@@ -74,6 +74,7 @@ class ScienceWorld(mesa.Model):
                  enable_type_b:         bool  = False,
                  alpha_rl:              float = 0.10,
                  beta_rl:               float = 3.0,
+                 enable_experience_gain: bool = False,
                  rng: int | None             = None):
         super().__init__(rng=rng)
         self.n_domains           = n_domains
@@ -112,6 +113,14 @@ class ScienceWorld(mesa.Model):
         self.enable_type_b = enable_type_b
         self.alpha_rl      = alpha_rl
         self.beta_rl       = beta_rl
+
+        # Experience-gain robustness check (exp_gain_check.py): when True, the
+        # _assimilate rule in researcher.py drops the gap=complexity-skill
+        # multiplier, so a researcher gains skill from each engagement event
+        # via the S-curve alone, regardless of whether the engaged model is
+        # more complex than they are. Used to test whether the H1 ordering is
+        # an artefact of frontier-limited learning.
+        self.enable_experience_gain = enable_experience_gain
 
         self.lab_turnover_events: list[tuple] = []
         self.scientific_models: list[ScientificModel] = []

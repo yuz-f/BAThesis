@@ -76,8 +76,6 @@ This is a genuine challenge for any argument in favour of computational modellin
 
 ## Computational Models as a Common Language
 
-<!-- VOICE OWNERSHIP: Entirely AI-drafted (commit d9b6cc8). Three paragraphs. Rewrite the math/physics-roots argument (paragraph 2) in your own framing — this is your original idea, the prose isn't yet. -->
-
 Computational modelling addresses both infrastructure layers identified so far — the statistical-and-procedural and the theoretical-formalism — at once, because a model that runs *must* be statistically specified *and* theoretically precise. Taken together, the findings reviewed above suggest that the replication crisis in psychology is not primarily a story of individual bad actors but of a field whose theoretical and communicative infrastructure is too informal to support cumulative progress. The appropriate response is not only procedural reform — pre-registration, power analysis, open data — but a deeper shift toward shared formal frameworks that make theoretical commitments visible, comparable, and testable across labs [@MuthukrishnaHenrich2019; @vanRooijBaggio2021].
 
 The case for such frameworks is partly an argument from the more mature sciences. Physics, mathematics, and computer science share a structural feature that psychology largely lacks: a stock of explicit axioms, formal definitions, and standardised notational conventions that allow distant researchers to interpret one another's claims with minimal ambiguity. A theorem stated in the language of differential geometry travels between laboratories without semantic loss; a verbal construct like "self-control" or "implicit attitude" does not. @MuthukrishnaHenrich2019 argue that the absence of an overarching theoretical framework — comparable to evolutionary theory in biology or general relativity in physics — is itself a structural cause of the replication crisis, because without such a framework empirical findings cannot be evaluated as confirmatory or surprising relative to a shared body of expectations. @vanRooijBaggio2021 develop a complementary point: psychological science has prioritised the *empirical* cycle (testing effects) over the *theoretical* cycle (specifying explanations with the formal precision needed to determine what would count as a test in the first place), and recommend importing the levels-of-analysis methodology that has worked in cognitive science from its informatic roots.
@@ -454,9 +452,6 @@ replacing $\text{skill\_bias}_d$ in the weight formula. Similarity is also dropp
 
 ## Parameter Status: Empirical, Heuristic, and Structural Choices
 
-<!-- VOICE OWNERSHIP: AI-drafted in tier 4 (commit aa3e1f7). Heavy use of formal categorisation prose. Rewrite into your own discursive register; the four-class structure can stay but the framing sentences should be yours. -->
-
-
 The model contains roughly thirty free parameters in addition to the manipulation variables shown in @tbl-params. Their status is mixed, and the thesis benefits from making this explicit rather than treating them as a uniform list. Following the categorisation framework familiar from agent-based-modelling methodology, the parameters fall into four classes.
 
 *Empirically motivated parameters* are anchored, however loosely, to the published literature. The misconduct base rate (0.05 per publication) is connected to @Fang2012's report that 67% of retracted biomedical articles involved misconduct, which sets a rough order-of-magnitude floor. The career-stage decay horizon (150 steps) is consistent with @Petersen2011's empirical work on early-career risk-taking and consolidation timescales. The OSC failure-rate empirical regime [@OpenScienceCollaboration2015] is referenced post-hoc as a sanity check on the simulated failure rate, not as a calibration target. These are the only parameters with non-trivial empirical anchoring; everything else is theoretically or structurally motivated.
@@ -514,9 +509,6 @@ Asterisks above each bracket indicate Mann-Whitney significance level (\textit{n
 ```
 
 ## Temporal Dynamics {#sec-temporal}
-
-<!-- VOICE OWNERSHIP: AI-drafted in tier 2.3 (commit 8e770c8). Keep the numbers and figure ref; rewrite the interpretive framing in your voice. -->
-
 
 The end-state metrics reported above summarise 300-step trajectories. To show how the H1 and H2 differences emerge over time, Figure \ref{fig:temporal} plots both metrics across the full simulation horizon for all three scenarios, with mean trajectories and 95% confidence bands across 30 seeds.
 
@@ -580,9 +572,6 @@ This divergence is an emergent *consequence* of the distribution shape — a med
 
 ## Control Check: Flat Skill Distribution {#sec-control}
 
-<!-- VOICE OWNERSHIP: AI-drafted in tier 2.2 (commit e719e33). The four-findings structure ("two sharpen, two complicate") is AI framing — recast in your own structure if it doesn't read like you. -->
-
-
 The Flat scenario — gap = 0, all researchers uniform at skill 0.32 — is a no-heterogeneity control at the same per-researcher mean as Peaked and Broad. It tests whether the H1 and H2 effects require skill *heterogeneity* (the structural feature the gap manipulates) or merely reflect any non-trivial population dynamic. The control was run under 30 independent seeds matching the main experiment.
 
 **H2: domain concentration requires skill heterogeneity.** The Gini coefficient under Flat profiles was .082 (95% CI [.070, .094]), below both Peaked (.141) and Broad (.099). The full ordering is **Peaked > Broad > Flat**, monotonic in dispersion, with both scenario-vs-Flat contrasts significant (Peaked vs Flat: *d* = 1.88, *p* < .0001; Broad vs Flat: *d* = 0.53, *p* = .005). With uniform profiles, no domain attracts a preferential pull, and the Gini falls to a near-baseline level driven only by stochastic variation. Domain concentration therefore emerges specifically because skill heterogeneity is present, and its magnitude scales with the degree of dispersion.
@@ -596,9 +585,6 @@ The Flat scenario — gap = 0, all researchers uniform at skill 0.32 — is a no
 Together, the Flat control confirms that the headline findings are properties of skill-distribution *shape*: H1 and H2 both order monotonically across the full dispersion range Peaked → Broad → Flat, and both vanish toward baseline in the no-heterogeneity Flat condition for H2, or reach their worst value there for H1.
 
 ## Validation: Parameter Recovery and Empirical Comparison {#sec-validation}
-
-<!-- VOICE OWNERSHIP: AI-drafted in tier 3.1+3.2 (commit 063fdeb). Heavy academic hedging ("interpretable rather than disqualifying", "qualitatively similar ... but at a magnitude below"). Rewrite hedges in your idiom. -->
-
 
 Two further analyses test the model's methodological standing beyond the sensitivity check below. The first is internal: does the simulation output carry information about its own input parameter? The second is external: does the model produce inequality patterns at the same magnitude as documented in real academic publication distributions? Figure \ref{fig:validation} reports both.
 
@@ -621,9 +607,6 @@ The undershoot is interpretable rather than disqualifying. Three structural feat
 Together these analyses sharpen the thesis's methodological standing: the manipulation is recoverable from outcomes (so the H1/H2 results reflect the manipulation, not seed noise), and the model's empirical correspondence is partial and quantitatively bounded rather than implicitly assumed. The Gini undershoot is itself an interpretable claim about which empirical features the present model architecture can and cannot reproduce.
 
 ## Layer-Decomposition Ablation {#sec-ablation}
-
-<!-- VOICE OWNERSHIP: AI-drafted in tier 4 (commit 103291b). LONGEST AI-heavy section. Watch for: "honest reading", "structural component", "doing real work here", "interaction effect", repeated bolded sub-claim headers. Rewrite each bolded sub-section in your own voice. -->
-
 
 A central concern with computational models of this kind is that headline findings can be implicit consequences of architectural choices made when the model was constructed, rather than substantive properties of the system being modelled. To address this concern directly, three nested model layers were run under both the Peaked and Broad scenarios with 15 seeds per cell, yielding 90 additional simulations.
 
@@ -682,9 +665,6 @@ The Type B comparison (@sec-type-b-results) fixed the Rescorla–Wagner paramete
 
 ## What the Model Demonstrates
 
-<!-- VOICE OWNERSHIP: H1/H2/H3/H4 paragraphs were heavily rewritten across tiers (most recently 103291b). The section is longer than it needs to be and structured around AI-style "honest reading" / "calibrated structural claim" framings. Significant rewrite recommended. -->
-
-
 The results provide a direct answer to each of the four research questions — and the answer to the first one is the opposite of what was hypothesised.
 
 **H1 — refuted, and reversed.** H1 predicted that the Peaked scenario would fail *more* than Broad. Under the confound-corrected (mean-skill, gap) parameterisation the data show the reverse: Peaked fails *less* (.561 vs. .652; *d* = −2.65). The reversal traces to a confound in an earlier parameterisation (@sec-scenarios): when peak and non-peak means were specified directly, a more peaked profile also carried lower total competence, mixing a shape effect with a magnitude effect. Holding total competence constant and varying only dispersion isolates the shape effect, which runs the other way — concentrating a fixed competence budget reduces replication failure. The effect has two components. *Immediate*: concentrating competence raises the proficiency at which a researcher works in their niche (0.68 vs. 0.482), and Equation 1's similarity term rewards niche proficiency, so peaked-profile researchers succeed more on the attempts they make from step one. *Cumulative*: a Peaked community contains high-skill summits whose published work carries high complexity, so the whole community assimilates toward that advanced work and its mean skill climbs over the run (to 0.41, vs. 0.35 for Broad and 0.33 for Flat — @sec-mechanism). Concentrated competence is, in this sense, a public good — a few deep specialists raise the frontier everyone else learns from. The original H1 was an artefact of the mean-skill confound; the corrected finding is that concentration of competence reduces replication failure, both immediately and cumulatively. This is a stronger and more surprising claim, and it is unusually robust — present at the base architecture (ablation Layer 1), at every ablation layer, under the Type B action-selection architecture, and at every level of both sensitivity sweeps (@sec-ablation, @sec-type-b-results, @sec-sensitivity). That a pre-registered hypothesis was refuted by correcting a confound the analysis itself surfaced is a feature of the work's method, not a weakness of its result: the model was used to audit its own parameterisation, and the audit changed the answer.
@@ -709,9 +689,6 @@ The present model is situated within a growing tradition of agent-based models o
 
 ## Limitations: What the Model Cannot Tell Us {#sec-limitations}
 
-<!-- VOICE OWNERSHIP: Extended in tier 4 (commit aa3e1f7) with new "third limitation" paragraph on the epistemic landscape. That paragraph in particular is AI-drafted. The first two limitations are older and may already be in your voice — verify. -->
-
-
 Any computational model carries a gap between what it formalises and what it claims to represent, and the present model is no exception.
 
 The most important limitation concerns what the confirmatory results do and do not establish. The directional results follow transparently from how skill enters the model's equations: the reversed H1 from the success-probability rule (Equation 1) rewarding niche proficiency, H2 partly from the skill-bias action-selection rule (Equation 6). This is inherent to any formal model — a model's outputs are consequences of its equations — and the present work quantifies it rather than denies it. The layer ablation (@sec-ablation) shows both effects are present at the base architecture; the Type B comparison (@sec-type-b-results) shows the reversed H1 survives the removal of Equation 6 entirely and decomposes H2 into architectural and feedback-emergent components. The directional results are therefore traceable to specific equations, and the work makes that traceability explicit. The genuine limitation is one of scope, not hidden circularity: the experiment does not test whether skill concentration affects *real* communities; it quantifies the magnitude and dynamics of these effects under a particular formalisation. A reader looking for evidence that real-world specialisation reduces real-world replication failure should not take the reversed H1 as such evidence. What the model contributes is a controlled estimate of effect size given the assumed mechanism, a decomposition of architectural components, and a demonstration — through the corrected confound (@sec-scenarios) — that formal modelling can audit its own parameterisation in ways verbal theorising cannot.
@@ -731,9 +708,6 @@ A sixth limitation, related to but distinct from the architectural-traceability 
 A seventh limitation concerns model complexity itself. The simulation has more moving parts than canonical parsimony-prized ABMs of scientific communities (e.g., @Smaldino2016 operates with on the order of five free parameters; the present model has roughly thirty), and a fair examiner could ask whether some of that complexity is doing structural work or merely accumulating fidelity. The honest answer has two parts. First, most additional mechanisms are interpretable — each is anchored to a specific literature claim (Matthew effect to @Merton1968, social learning to @Crane1972, career stages to @Petersen2011, misconduct rates to @Fang2012, the epistemic landscape to @WeisbergMuldoon2009, skill assimilation to @Anderson1982) rather than being a fit constant. Second, the model actively tests which mechanisms matter through the layer ablation (@sec-ablation), the Flat control (@sec-control), and the Type B comparison (@sec-type-b-results), and reports separately which findings are necessary, which are calibrated, and which are partly architectural. Some mechanisms — the breakthrough salience shock at $\times 0.35$, fingerprint drift's asymmetric 0.2%/0.1% constants, the dual misconduct-and-pressure pathways — are defensible but not load-bearing for the headline findings and could in principle be removed or simplified without affecting H1 or H2 in direction. The model is best read as a *core* of necessary mechanisms surrounded by a calibrated breadth chosen for fidelity to the literature; it is not a single integrated mechanism whose every parameter is doing structural work.
 
 ## Implications and Their Limits
-
-<!-- VOICE OWNERSHIP: Rewritten in tier 4 cluster C (commit aa3e1f7) to remove policy creep. Heavy hedging language ("the work is consistent with the view that..."). The hedging is the right move; the wording is AI-style — rephrase in your idiom. -->
-
 
 What does this work imply for the reform agenda in psychology? The honest answer is: less than the simulation results, taken at face value, might suggest. The model's H1 and H2 findings concern a stylised population of fifty researchers, ten domains, and a particular formalisation of skill, replication, and publication dynamics over 300 simulated steps. Translating those findings into recommendations about real institutions, real career structures, or real training requires assumptions about the mapping between model and world that the simulation itself does not validate. Three points can nonetheless be raised cautiously.
 

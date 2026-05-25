@@ -25,7 +25,7 @@
       % Title block
       {\Large\bfseries Of the Standards of Science\par}
       \vspace{0.6em}
-      {\large\itshape A Computational Approach to Psychology's Replication Crisis\par}
+      {\large\itshape A Computational Approach to Psychology's Empirical Crisis\par}
       \vspace{2cm}
 
       % Type of work
@@ -61,10 +61,15 @@
   \end{titlepage}
 }
 
-% --- Abstract environment: centred heading, no indent -------
+% --- Abstract environment: centred heading, no indent, single-spaced ----
+% Double-line-spacing (linestretch=2 in YAML) is applied to the body but
+% makes a substantive abstract spill to two pages. Single-spacing the
+% abstract is the conventional choice for thesis abstracts and keeps a
+% ~360-word abstract on a single page.
 \usepackage{abstract}
+\usepackage{setspace}
 \renewcommand{\abstractnamefont}{\normalfont\bfseries\centering}
-\renewcommand{\abstracttextfont}{\normalfont}
+\renewcommand{\abstracttextfont}{\normalfont\singlespacing}
 \setlength{\absleftindent}{0pt}
 \setlength{\absrightindent}{0pt}
 

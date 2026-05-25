@@ -61,15 +61,14 @@
   \end{titlepage}
 }
 
-% --- Abstract environment: centred heading, no indent, single-spaced ----
-% Double-line-spacing (linestretch=2 in YAML) is applied to the body but
-% makes a substantive abstract spill to two pages. Single-spacing the
-% abstract is the conventional choice for thesis abstracts and keeps a
-% ~360-word abstract on a single page.
+% --- Abstract environment: centred heading, no indent ----
+% Abstract inherits the document's double-spacing (linestretch=2) for
+% formatting consistency with the body and APA convention. Abstract
+% length is therefore constrained to fit one page at double-spacing
+% (≈ 230 words).
 \usepackage{abstract}
-\usepackage{setspace}
 \renewcommand{\abstractnamefont}{\normalfont\bfseries\centering}
-\renewcommand{\abstracttextfont}{\normalfont\singlespacing}
+\renewcommand{\abstracttextfont}{\normalfont}
 \setlength{\absleftindent}{0pt}
 \setlength{\absrightindent}{0pt}
 

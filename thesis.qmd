@@ -6,7 +6,6 @@ author:
     affiliation: Department of Psychology, University of Zurich
     corresponding: true
     email: yuzanilario.flury@uzh.ch
-    orcid: 23-780-
 date: today
 bibliography: meta/references.bib
 csl: https://www.zotero.org/styles/apa
